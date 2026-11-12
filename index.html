@@ -1,0 +1,1777 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1628">
+<title>Ti thể – Nhà máy năng lượng của tế bào | Mô phỏng 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#03050d;--cyan:#35f2ff;--mag:#ff4fd8;--amber:#ffc94a;--lime:#8dff6a;--red:#ff6a4a;
+  --panel:rgba(9,14,32,.68);--stroke:rgba(130,205,255,.22);--text:#e9f2ff;--muted:#9db3d6;
+  --sb:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:'Be Vietnam Pro','Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif}
+#scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+.vignette{position:fixed;inset:0;pointer-events:none;z-index:5;
+  background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100%)}
+.panel{background:var(--panel);-webkit-backdrop-filter:blur(14px) saturate(150%);backdrop-filter:blur(14px) saturate(150%);
+  border:1px solid var(--stroke);border-radius:18px;box-shadow:0 14px 44px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.05)}
+
+/* ---------- Thương hiệu ---------- */
+.brand{position:fixed;left:18px;top:16px;z-index:20;display:flex;gap:12px;align-items:center;pointer-events:none}
+.brand .logo{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-size:22px;
+  background:linear-gradient(135deg,#ff4fd8,#35f2ff);box-shadow:0 0 26px rgba(53,242,255,.55)}
+.brand h1{font-size:20px;font-weight:800;letter-spacing:.16em;text-shadow:0 0 18px rgba(53,242,255,.6)}
+.brand p{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* ---------- Chuyển chế độ ---------- */
+.modes{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:30;display:flex;gap:4px;padding:5px;border-radius:999px}
+.modes button{display:flex;align-items:center;gap:8px;border:0;cursor:pointer;color:var(--muted);background:transparent;
+  padding:10px 18px;border-radius:999px;font-family:inherit;font-weight:600;font-size:14px;transition:.3s;white-space:nowrap}
+.modes button .ico{font-size:17px}
+.modes button:hover{color:#fff}
+.modes button.active{color:#06101c;background:linear-gradient(120deg,var(--cyan),#7aa8ff);box-shadow:0 0 22px rgba(53,242,255,.55)}
+.modes button[data-mode="2"].active{background:linear-gradient(120deg,#ffb23a,#ff6a4a);box-shadow:0 0 22px rgba(255,150,60,.6)}
+.l-short,.t-short{display:none}
+
+/* ---------- Điều khiển ---------- */
+.controls{position:fixed;left:50%;bottom:calc(14px + var(--sb));transform:translateX(-50%);z-index:30;display:flex;gap:8px;padding:8px;
+  border-radius:20px;max-width:calc(100vw - 16px)}
+.tg{display:flex;align-items:center;gap:8px;border:1px solid var(--stroke);background:rgba(255,255,255,.04);color:var(--text);
+  padding:9px 12px;border-radius:14px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;transition:.25s;white-space:nowrap}
+.tg:hover{background:rgba(255,255,255,.1)}
+.tg .sw{width:30px;height:17px;border-radius:99px;background:rgba(255,255,255,.14);position:relative;transition:.25s;flex:none}
+.tg .sw::after{content:"";position:absolute;left:2px;top:2px;width:13px;height:13px;border-radius:50%;background:#cfe0ff;transition:.25s}
+.tg[aria-pressed="true"] .sw{background:linear-gradient(90deg,var(--cyan),#6ea0ff)}
+.tg[aria-pressed="true"] .sw::after{left:15px;background:#fff;box-shadow:0 0 8px #fff}
+.tg.quiz{background:linear-gradient(120deg,var(--mag),#8a5bff);border-color:transparent;box-shadow:0 0 22px rgba(255,79,216,.45)}
+.tg.quiz:hover{filter:brightness(1.15)}
+
+/* ---------- Chú giải ---------- */
+.legend{position:fixed;left:16px;bottom:16px;z-index:20;padding:12px 14px;font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:6px;max-width:230px}
+.legend div{display:flex;align-items:center;gap:8px;color:var(--text)}
+.legend i{width:10px;height:10px;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c),0 0 20px var(--c)}
+.legend small{line-height:1.45;margin-top:4px;border-top:1px solid var(--stroke);padding-top:8px}
+
+/* ---------- Nhãn 3D ---------- */
+#labels{position:fixed;inset:0;pointer-events:none;z-index:15;overflow:hidden}
+.hs{position:absolute;left:0;top:0;width:0;height:0;opacity:0;transition:opacity .4s;will-change:transform;transform:translate3d(-999px,-999px,0)}
+.hs .dot,.hs .tag{position:absolute;pointer-events:none;cursor:pointer}
+.hs.on .dot,.hs.on .tag{pointer-events:auto}
+.hs.on{opacity:1}
+.hs .dot{left:-9px;top:-9px;width:18px;height:18px;border-radius:50%;background:var(--c);box-shadow:0 0 14px var(--c),0 0 34px var(--c)}
+.hs .dot::before{content:"";position:absolute;inset:5px;border-radius:50%;background:#fff}
+.hs .dot::after{content:"";position:absolute;inset:-7px;border-radius:50%;border:2px solid var(--c);animation:ping 1.9s ease-out infinite}
+.hs .tag{left:18px;top:-15px;padding:6px 11px;border-radius:999px;font-size:12.5px;font-weight:600;white-space:nowrap;color:#fff;
+  background:rgba(6,10,24,.72);border:1px solid var(--c);box-shadow:0 0 16px color-mix(in srgb,var(--c) 45%,transparent);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);transition:.25s}
+.hs:hover .tag,.hs.active .tag{background:var(--c);color:#06101c}
+@keyframes ping{0%{transform:scale(.6);opacity:.95}100%{transform:scale(1.8);opacity:0}}
+
+/* ---------- Bảng thông tin ---------- */
+.info{position:fixed;right:16px;top:76px;bottom:92px;width:min(390px,calc(100vw - 32px));z-index:40;overflow:auto;padding:20px 20px 24px;
+  transform:translateX(calc(100% + 28px));opacity:0;transition:transform .5s cubic-bezier(.2,.85,.2,1),opacity .4s;pointer-events:none}
+.info.open{transform:none;opacity:1;pointer-events:auto}
+.info::-webkit-scrollbar{width:6px}.info::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:9px}
+.x{position:absolute;right:12px;top:12px;width:34px;height:34px;border-radius:50%;border:1px solid var(--stroke);background:rgba(255,255,255,.06);
+  color:#fff;cursor:pointer;font-size:15px;z-index:2}
+.x:hover{background:rgba(255,255,255,.16)}
+.i-head{display:flex;gap:14px;align-items:center;margin-bottom:14px;padding-right:34px}
+.i-ico{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;font-size:26px;flex:none;
+  background:color-mix(in srgb,var(--c) 22%,transparent);border:1px solid var(--c);box-shadow:0 0 22px color-mix(in srgb,var(--c) 50%,transparent)}
+.i-tag{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--c);font-weight:700}
+.info h2{font-size:21px;line-height:1.2;font-weight:800;margin-top:2px}
+.info h3{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:16px 0 8px}
+.i-sum{font-size:14.5px;line-height:1.6;color:#d6e4ff}
+.info ul{list-style:none;display:flex;flex-direction:column;gap:9px}
+.info li{font-size:13.5px;line-height:1.55;padding-left:18px;position:relative;color:#cddcf5}
+.info li::before{content:"";position:absolute;left:0;top:.6em;width:7px;height:7px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c)}
+.analog,.fact{margin-top:16px;border-radius:14px;padding:12px 14px;font-size:13.5px;line-height:1.55}
+.analog{background:rgba(255,178,58,.09);border:1px solid rgba(255,178,58,.3)}
+.analog.hot{background:rgba(255,140,40,.2);border-color:#ffb23a;box-shadow:0 0 22px rgba(255,150,50,.25)}
+.fact{background:rgba(53,242,255,.07);border:1px solid rgba(53,242,255,.25)}
+.analog span,.fact span{display:block;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}
+.analog span{color:#ffc46a}.fact span{color:var(--cyan)}
+
+/* ---------- Đố vui ---------- */
+.modal{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:16px;background:rgba(2,4,12,.62);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .35s}
+.modal.open{opacity:1;pointer-events:auto}
+.modal-card{position:relative;width:min(660px,100%);max-height:calc(100vh - 32px);overflow:auto;padding:24px;transform:translateY(24px) scale(.97);transition:transform .4s cubic-bezier(.2,.9,.2,1)}
+.modal.open .modal-card{transform:none}
+.q-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;padding-right:40px}
+.q-dots{display:flex;gap:6px}
+.q-dots i{width:34px;height:6px;border-radius:9px;background:rgba(255,255,255,.14)}
+.q-dots i.done{background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+.q-dots i.cur{background:var(--mag);box-shadow:0 0 10px var(--mag)}
+.q-score{font-weight:700;font-size:13px;color:var(--amber)}
+.q-topic{font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mag);font-weight:700}
+.q-text{font-size:19px;line-height:1.45;font-weight:700;margin:6px 0 16px}
+.opts{display:grid;gap:10px}
+.opt{display:flex;gap:12px;align-items:flex-start;text-align:left;border:1px solid var(--stroke);background:rgba(255,255,255,.04);color:var(--text);
+  padding:13px 14px;border-radius:14px;cursor:pointer;font-family:inherit;font-size:14.5px;line-height:1.45;transition:.2s}
+.opt b{flex:none;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:rgba(255,255,255,.1);font-size:13px}
+.opt:not(:disabled):hover{background:rgba(255,255,255,.11);border-color:var(--cyan);transform:translateX(3px)}
+.opt:disabled{cursor:default}
+.opt.right{background:rgba(70,230,130,.18);border-color:#46e682;box-shadow:0 0 20px rgba(70,230,130,.3)}
+.opt.right b{background:#46e682;color:#042010}
+.opt.wrong{background:rgba(255,80,90,.16);border-color:#ff5a64;box-shadow:0 0 20px rgba(255,80,90,.25)}
+.opt.wrong b{background:#ff5a64;color:#2a0408}
+.fb{margin-top:14px;border-radius:14px;padding:13px 15px;font-size:14px;line-height:1.55;animation:pop .35s ease}
+.fb.ok{background:rgba(70,230,130,.12);border:1px solid rgba(70,230,130,.4)}
+.fb.no{background:rgba(255,80,90,.11);border:1px solid rgba(255,90,100,.4)}
+.fb strong{display:block;margin-bottom:4px}
+@keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.q-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+.btn{border:0;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px;padding:11px 20px;border-radius:12px;color:#06101c;
+  background:linear-gradient(120deg,var(--cyan),#7aa8ff);box-shadow:0 0 18px rgba(53,242,255,.4)}
+.btn.ghost{background:rgba(255,255,255,.08);color:#fff;box-shadow:none;border:1px solid var(--stroke)}
+.btn:hover{filter:brightness(1.12)}
+.res{text-align:center;padding:10px 0 4px}
+.res .big{font-size:56px;font-weight:800;background:linear-gradient(120deg,var(--cyan),var(--mag));-webkit-background-clip:text;background-clip:text;color:transparent}
+.res p{color:#cddcf5;line-height:1.6;margin-top:8px}
+.res .best{color:var(--amber);font-size:13px;margin-top:6px}
+
+/* ---------- Toast & loader ---------- */
+.toast{position:fixed;top:70px;left:50%;transform:translate(-50%,-10px);z-index:35;padding:9px 16px;border-radius:999px;font-size:13px;font-weight:600;
+  background:rgba(10,16,34,.85);border:1px solid var(--stroke);opacity:0;pointer-events:none;transition:.4s;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+#loader{position:fixed;inset:0;z-index:100;display:grid;place-items:center;text-align:center;background:radial-gradient(circle at 50% 40%,#16294a,#0b1628 70%);transition:opacity .8s,visibility .8s}
+#loader.hide{opacity:0;visibility:hidden}
+.ring{width:74px;height:74px;border-radius:50%;margin:0 auto 22px;border:3px solid rgba(53,242,255,.16);border-top-color:var(--cyan);border-right-color:var(--mag);animation:spin 1s linear infinite;box-shadow:0 0 30px rgba(53,242,255,.3)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.l-msg{max-width:420px;padding:0 20px;color:var(--muted);line-height:1.6;font-size:14px}
+.l-msg b{color:#fff;display:block;font-size:17px;margin-bottom:6px;letter-spacing:.04em}
+#loader.error .ring{animation:none;border-color:#ff5a64}
+
+/* ---------- Di động ---------- */
+@media (max-width:760px){
+  .brand{left:12px;top:10px}.brand .logo{width:36px;height:36px;font-size:18px;border-radius:11px}.brand h1{font-size:16px}.brand p{display:none}
+  .modes{top:56px}.modes button{padding:9px 13px;font-size:13px}
+  .l-long,.t-long{display:none}.l-short,.t-short{display:inline}
+  .legend{display:none}
+  .controls{flex-wrap:wrap;justify-content:center;width:calc(100vw - 16px)}
+  .tg{padding:8px 9px;font-size:12.5px}.tg .sw{display:none}
+  .tg[aria-pressed="true"]{border-color:var(--cyan);background:rgba(53,242,255,.15)}
+  .info{left:10px;right:10px;top:auto;bottom:calc(112px + var(--sb));width:auto;max-height:46vh;transform:translateY(130%);padding:16px}
+  .info.open{transform:none}
+  .toast{top:108px}
+  .q-text{font-size:17px}.modal-card{padding:18px}
+}
+
+/* ===== Bảng màu ĐẬM, không neon ===== */
+:root{--bg:#0b1628;--cyan:#2f9fd8;--mag:#c43d86;--amber:#e0912a;--lime:#3c9d4a;--red:#d0452c;
+ --panel:rgba(12,24,44,.93);--stroke:rgba(150,185,225,.32);--text:#f2f6fc;--muted:#b9c8e0}
+.vignette{background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,.3) 100%)}
+.panel{box-shadow:0 8px 26px rgba(0,0,0,.4)}
+.brand .logo{background:linear-gradient(135deg,#b8337a,#2a7fc0);box-shadow:0 3px 12px rgba(0,0,0,.45)}
+.brand h1{text-shadow:none}
+.modes button.active{color:#fff;background:linear-gradient(120deg,#1f78b4,#2f62c4);box-shadow:0 3px 10px rgba(0,0,0,.4)}
+.modes button[data-mode="2"].active{background:linear-gradient(120deg,#c26a0a,#b23a1f);box-shadow:0 3px 10px rgba(0,0,0,.4)}
+.tg[aria-pressed="true"] .sw{background:#2a7fc0}
+.tg[aria-pressed="true"] .sw::after{box-shadow:none}
+.tg.quiz{background:linear-gradient(120deg,#a02a6d,#5b3fb5);box-shadow:0 3px 10px rgba(0,0,0,.4)}
+.legend i{box-shadow:none}
+.hs .dot{box-shadow:0 0 0 2px rgba(0,0,0,.45)}
+.hs .tag{background:rgba(8,16,32,.93);box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.hs:hover .tag,.hs.active .tag{color:#fff}
+.i-ico{box-shadow:none}.info li::before{box-shadow:none}
+.analog{background:rgba(217,130,15,.16);border-color:rgba(217,130,15,.55)}
+.analog.hot{background:rgba(217,130,15,.28);border-color:#d9820f;box-shadow:none}
+.fact{background:rgba(47,159,216,.14);border-color:rgba(47,159,216,.5)}
+.analog span{color:#f0b25a}.fact span{color:#6cc0ec}
+.q-dots i.done{background:#2f9fd8;box-shadow:none}.q-dots i.cur{background:#c43d86;box-shadow:none}
+.opt.right{background:rgba(40,160,90,.28);border-color:#2fa862;box-shadow:none}.opt.right b{background:#2fa862;color:#fff}
+.opt.wrong{background:rgba(200,50,60,.28);border-color:#d0404a;box-shadow:none}.opt.wrong b{background:#d0404a;color:#fff}
+.btn{color:#fff;background:linear-gradient(120deg,#1f78b4,#2f62c4);box-shadow:0 3px 10px rgba(0,0,0,.35)}
+.btn.ghost{background:rgba(255,255,255,.08);box-shadow:none}
+.ring{box-shadow:none}
+@media (max-width:760px){.tg[aria-pressed="true"]{border-color:#2f9fd8;background:rgba(47,159,216,.3)}}
+
+/* ===== Nhãn gọn: chỉ hiện biểu tượng, tên chỉ hiện khi chạm ===== */
+.hs .dot{width:30px;height:30px;left:-15px;top:-15px;display:grid;place-items:center;font-size:15px;line-height:1;background:var(--c);box-shadow:0 0 0 2px rgba(255,255,255,.92),0 3px 8px rgba(0,0,0,.5)}
+.hs .dot::before{display:none}.hs .dot::after{inset:-6px}
+.hs .hit{position:absolute;left:-24px;top:-24px;width:48px;height:48px;border-radius:50%;pointer-events:none;cursor:pointer}
+.hs.on .hit{pointer-events:auto}
+.hs .tag{left:24px;top:-15px;opacity:0;transform:translateX(-6px) scale(.9);transform-origin:left center;pointer-events:none!important}
+.hs.active .tag,.hs:hover .tag{opacity:1;transform:none}
+.hs.flip .tag{left:auto;right:24px;transform-origin:right center}
+.controls,.legend{transition:opacity .35s}
+body.focus .controls,body.focus .legend{opacity:0;pointer-events:none}
+@media (max-width:760px){
+ .info{bottom:calc(12px + var(--sb));max-height:40vh;padding:14px 16px 18px}
+ .i-head{margin-bottom:8px}.i-ico{width:42px;height:42px;font-size:21px}
+ .info h2{font-size:18px}.info h3{margin:10px 0 6px}.i-sum{font-size:13.5px}.info li{font-size:13px}
+}
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="scene" tabindex="0"></canvas>
+<div class="vignette"></div>
+<div id="labels"></div>
+
+<header class="brand">
+  <div class="logo">⚡</div>
+  <div><h1>TI THỂ</h1><p>Nhà máy năng lượng của tế bào</p></div>
+</header>
+
+<nav class="modes panel" id="modes" aria-label="Chế độ xem">
+  <button class="active" data-mode="1"><span class="ico">🧬</span><span class="l-long">Cấu trúc sinh học 3D</span><span class="l-short">Sinh học 3D</span></button>
+  <button data-mode="2"><span class="ico">🏭</span><span class="l-long">Nhà máy năng lượng</span><span class="l-short">Nhà máy</span></button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<aside class="info panel" id="info" aria-live="polite">
+  <button class="x" id="infoClose" aria-label="Đóng bảng thông tin">✕</button>
+  <div id="infoBody"></div>
+</aside>
+
+<div class="controls panel" id="controls">
+  <button class="tg" id="tgSpin" aria-pressed="true"><span>🔄</span><span class="t-long">Tự động xoay</span><span class="t-short">Tự xoay</span><i class="sw"></i></button>
+  <button class="tg" id="tgLabels" aria-pressed="true"><span>🏷️</span><span class="t-long">Nhãn chú thích</span><span class="t-short">Nhãn</span><i class="sw"></i></button>
+  <button class="tg" id="tgCut" aria-pressed="true"><span>✂️</span><span class="t-long">Mặt cắt</span><span class="t-short">Cắt</span><i class="sw"></i></button>
+  <button class="tg" id="tgFx" aria-pressed="true"><span>✨</span><span class="t-long">Dòng e⁻ / H⁺</span><span class="t-short">Hạt</span><i class="sw"></i></button>
+  <button class="tg quiz" id="btnQuiz"><span>🧠</span><span>Đố vui</span></button>
+</div>
+
+<div class="legend panel">
+  <div><i style="--c:#2a8fd0"></i>Electron (e⁻)</div>
+  <div><i style="--c:#d9481f"></i>Proton (H⁺)</div>
+  <div><i style="--c:#e0a000"></i>Phân tử ATP</div>
+  <small>Kéo chuột: xoay · Cuộn / chụm: thu phóng · Bấm vào các điểm sáng để xem chi tiết</small>
+</div>
+
+<div class="modal" id="quiz" aria-hidden="true">
+  <div class="modal-card panel">
+    <button class="x" id="quizClose" aria-label="Đóng đố vui">✕</button>
+    <div id="quizBody"></div>
+  </div>
+</div>
+
+<div id="loader"><div><div class="ring"></div><div class="l-msg"><b>Đang khởi động nhà máy năng lượng…</b>Đang tải thư viện Three.js và dựng mô hình ti thể 3D.</div></div></div>
+
+<script type="module">
+const $ = (s, e = document) => e.querySelector(s);
+const $$ = (s, e = document) => [...e.querySelectorAll(s)];
+const loader = $('#loader');
+function showError(html) {
+  loader.classList.remove('hide');
+  loader.classList.add('error');
+  $('.l-msg', loader).innerHTML = html;
+}
+
+/* =====================================================================
+   NỘI DUNG GIÁO DỤC (Tiếng Việt)
+   ===================================================================== */
+const INFO = {
+  outer: {
+    icon: '🛡️', name: 'Màng ngoài', tag: 'Lớp vỏ bảo vệ',
+    summary: 'Màng ngoài là lớp màng nhẵn bao quanh toàn bộ ti thể, ngăn cách ti thể với tế bào chất và đóng vai trò như “tường rào” của nhà máy.',
+    points: [
+      'Chứa nhiều <b>porin</b> – các kênh protein lớn cho phép ion và phân tử nhỏ (pyruvate, ADP, ATP…) đi qua dễ dàng.',
+      'Protein lớn cần vào ti thể phải đi qua phức hợp vận chuyển chuyên biệt (TOM).',
+      'Giữa màng ngoài và màng trong là <b>khoang gian màng</b> – nơi H⁺ (proton) được tích tụ để tạo chênh lệch điện hóa.'
+    ],
+    factory: 'Tường rào và cổng bảo vệ: cho nguyên liệu (pyruvate, O₂, ADP) đi vào và sản phẩm (ATP) đi ra, đồng thời chặn những thứ không cần thiết.',
+    fact: 'Theo thuyết nội cộng sinh, ti thể có nguồn gốc từ một loại vi khuẩn hiếu khí bị tế bào nhân thực “nuốt” vào cách đây hàng tỉ năm – màng ngoài chính là dấu tích của túi nuốt đó.'
+  },
+  inner: {
+    icon: '🌀', name: 'Màng trong & mào ti thể', tag: 'Dây chuyền sản xuất',
+    summary: 'Màng trong gấp nếp nhiều lần tạo thành các <b>mào (cristae)</b>. Đây là nơi diễn ra giai đoạn cuối của hô hấp tế bào – chuỗi truyền electron và tổng hợp ATP.',
+    points: [
+      'Gấp nếp làm <b>tăng mạnh diện tích bề mặt</b>, nhờ đó gắn được rất nhiều phức hợp enzyme.',
+      'Mang <b>chuỗi truyền electron</b> (phức hợp I, II, III, IV): electron đi qua, năng lượng được dùng để bơm H⁺ từ chất nền ra khoang gian màng.',
+      'Mang <b>ATP synthase</b> (phức hợp V) – “tuabin” tổng hợp ATP khi H⁺ chảy ngược vào chất nền.',
+      'Rất ít thấm H⁺ (giàu cardiolipin) nên giữ được chênh lệch nồng độ proton.'
+    ],
+    factory: 'Dây chuyền lắp ráp và tuabin phát điện: các “máy” xếp dày đặc trên bề mặt gấp nếp để tăng công suất.',
+    fact: 'Tế bào cơ tim cần rất nhiều năng lượng nên có ti thể với mào dày đặc và số lượng ti thể cực lớn.'
+  },
+  matrix: {
+    icon: '🧪', name: 'Chất nền (matrix)', tag: 'Phân xưởng trung tâm',
+    summary: 'Chất nền là dịch dạng gel nằm bên trong màng trong, nơi diễn ra <b>chu trình Krebs</b> và nhiều phản ứng oxy hóa chất dinh dưỡng.',
+    points: [
+      'Pyruvate từ tế bào chất được chuyển thành <b>acetyl-CoA</b> rồi đi vào chu trình Krebs.',
+      'Chứa enzyme của chu trình Krebs và quá trình oxy hóa acid béo (β-oxy hóa).',
+      'Sản phẩm: <b>NADH, FADH₂</b> (mang electron), CO₂ và một ít ATP/GTP.',
+      'Chứa ADN ti thể, ribosome, tRNA và nhiều ion như Ca²⁺.'
+    ],
+    factory: 'Phân xưởng trung tâm: nhận nhiên liệu (glucose, acid béo) và “đốt” chúng thành những “viên pin nạp điện” NADH, FADH₂ chuyển tới dây chuyền.',
+    fact: 'Chu trình Krebs còn có tên khác là chu trình acid citric, do nhà sinh hóa Hans Krebs mô tả vào năm 1937.'
+  },
+  atp: {
+    icon: '🔋', name: 'ATP – đồng tiền năng lượng', tag: 'Sản phẩm chính',
+    summary: '<b>ATP</b> (adenosine triphosphate) là phân tử mang năng lượng sẵn dùng của mọi tế bào sống.',
+    points: [
+      '<b>ATP synthase</b> dùng dòng H⁺ chảy qua như nước quay tuabin để gắn ADP + Pi → ATP.',
+      'Khi liên kết phosphate cuối bị cắt (ATP → ADP + Pi), năng lượng được giải phóng cho co cơ, vận chuyển chủ động, dẫn truyền thần kinh, tổng hợp chất…',
+      'Một phân tử glucose qua hô hấp hiếu khí cho khoảng <b>30–32 ATP</b> (sách cũ ghi 36–38).',
+      'ATP rời khỏi ti thể nhờ protein vận chuyển ANT (đổi lấy ADP đi vào).'
+    ],
+    factory: 'Sản phẩm của nhà máy: những viên pin / đồng xu năng lượng chạy trên băng chuyền ra khỏi cổng, tới nơi tiêu thụ.',
+    fact: 'Ước tính mỗi ngày cơ thể người tái tạo lượng ATP có khối lượng xấp xỉ khối lượng cơ thể mình – dù tại mỗi thời điểm chỉ chứa vài chục gam.'
+  },
+  dna: {
+    icon: '🧬', name: 'ADN ti thể (mtDNA)', tag: 'Bản thiết kế riêng',
+    summary: 'ADN ti thể là phân tử <b>vòng kép</b> nhỏ nằm trong chất nền – bằng chứng cho thấy ti thể từng là một sinh vật sống độc lập.',
+    points: [
+      'Ở người dài khoảng <b>16.569 cặp base</b>, mã hóa 37 gen: 13 protein của chuỗi hô hấp, 22 tRNA và 2 rRNA.',
+      'Mỗi ti thể có vài bản sao mtDNA; mỗi tế bào có thể chứa hàng trăm đến hàng nghìn ti thể.',
+      'Di truyền theo <b>dòng mẹ</b> (ti thể của tinh trùng thường bị loại bỏ sau thụ tinh).',
+      'Hơn một nghìn protein ti thể còn lại do gen trong nhân mã hóa rồi được nhập vào ti thể.'
+    ],
+    factory: 'Phòng thiết kế và điều khiển: lưu bản vẽ để tự chế tạo một số bộ phận máy móc quan trọng ngay tại chỗ.',
+    fact: 'Vì mtDNA nằm gần nơi sinh ra các gốc oxy hóa và ít cơ chế sửa chữa hơn ADN nhân nên nó dễ tích lũy đột biến hơn.'
+  },
+  ribo: {
+    icon: '⚙️', name: 'Ribosome ti thể', tag: 'Máy in protein tại chỗ',
+    summary: 'Ribosome ti thể (mitoribosome) tổng hợp protein ngay trong chất nền, theo thông tin từ ADN ti thể.',
+    points: [
+      'Ở động vật có vú có hệ số lắng <b>55S</b> – nhỏ hơn ribosome 80S của tế bào chất và gần với ribosome vi khuẩn hơn.',
+      'Tổng hợp 13 protein cốt lõi của chuỗi truyền electron và ATP synthase từ mRNA phiên mã từ mtDNA.',
+      'Hoạt động phối hợp với tRNA và rRNA do chính ti thể mã hóa.'
+    ],
+    factory: 'Máy in 3D tại xưởng: tự in những chi tiết then chốt của dây chuyền thay vì phải nhập từ bên ngoài.',
+    fact: 'Một số kháng sinh nhắm vào ribosome vi khuẩn cũng có thể ảnh hưởng đến ribosome ti thể – điều này giải thích vài tác dụng phụ của thuốc.'
+  },
+  exhaust: {
+    icon: '💨', name: 'Khí thải & hơi nước', tag: 'Sản phẩm phụ',
+    summary: 'Hô hấp tế bào tạo ra các sản phẩm phụ: <b>CO₂, nước và nhiệt</b> – giống khí thải của một nhà máy.',
+    points: [
+      '<b>CO₂</b> sinh ra chủ yếu ở bước chuyển pyruvate → acetyl-CoA và trong chu trình Krebs, rồi khuếch tán ra khỏi tế bào.',
+      '<b>H₂O</b> hình thành ở phức hợp IV: O₂ nhận electron và H⁺ → nước.',
+      'Một phần năng lượng thoát ra dưới dạng <b>nhiệt</b>, góp phần duy trì thân nhiệt.',
+      'Ở mô mỡ nâu, protein UCP1 cho H⁺ “rò rỉ” qua màng để tạo nhiệt thay vì tạo ATP.'
+    ],
+    factory: 'Ống khói: thải khí CO₂ và hơi nước ra ngoài để nhà máy vận hành liên tục.',
+    fact: 'Khoảng 95% lượng O₂ chúng ta hít vào được ti thể sử dụng ở phức hợp IV của chuỗi truyền electron.'
+  }
+};
+
+const QUIZ = [
+  { topic: 'Cấu trúc',
+    q: 'Màng trong của ti thể gấp nếp tạo thành các mào (cristae). Ý nghĩa quan trọng nhất của cấu trúc này là gì?',
+    opts: ['Tăng diện tích bề mặt để chứa nhiều phức hợp chuỗi truyền electron và ATP synthase',
+           'Giúp ti thể di chuyển nhanh hơn trong tế bào chất',
+           'Ngăn khí O₂ đi vào chất nền của ti thể',
+           'Là nơi duy nhất lưu giữ ADN của ti thể'],
+    a: 0,
+    exp: 'Gấp nếp làm diện tích màng trong lớn hơn rất nhiều, nhờ đó gắn được nhiều phức hợp của chuỗi truyền electron và ATP synthase → sản xuất ATP hiệu quả hơn.' },
+  { topic: 'Chu trình Krebs',
+    q: 'Chu trình Krebs diễn ra ở đâu và tạo ra chủ yếu những “chất mang năng lượng” nào?',
+    opts: ['Chất nền ti thể – tạo NADH và FADH₂ (cùng CO₂ và một ít ATP)',
+           'Tế bào chất – tạo glucose và O₂',
+           'Khoang gian màng – tạo ATP và H₂O',
+           'Màng ngoài – tạo ADN và ribosome'],
+    a: 0,
+    exp: 'Chu trình Krebs diễn ra trong chất nền. Mỗi vòng giải phóng CO₂ và tạo NADH, FADH₂ – những “viên pin” mang electron giàu năng lượng đến chuỗi truyền electron.' },
+  { topic: 'Chuỗi truyền electron',
+    q: 'Ở cuối chuỗi truyền electron, chất nhận electron cuối cùng là gì và tạo ra sản phẩm nào?',
+    opts: ['O₂ – kết hợp với electron và H⁺ tạo thành H₂O',
+           'CO₂ – tạo thành glucose',
+           'NAD⁺ – tạo thành ATP',
+           'H₂O – tạo thành O₂'],
+    a: 0,
+    exp: 'Oxy là chất nhận electron cuối cùng (ở phức hợp IV) và bị khử thành nước. Thiếu O₂, chuỗi truyền electron bị tắc và ATP giảm mạnh – đó là lý do chúng ta phải thở.' },
+  { topic: 'Tổng hợp ATP',
+    q: 'ATP synthase tổng hợp ATP nhờ nguồn năng lượng trực tiếp nào?',
+    opts: ['Dòng H⁺ chảy từ khoang gian màng về chất nền theo chênh lệch nồng độ',
+           'Ánh sáng mặt trời chiếu vào ti thể',
+           'Sự phân giải trực tiếp glucose ngay trên enzyme',
+           'Dòng Na⁺ đi ra khỏi tế bào'],
+    a: 0,
+    exp: 'Chuỗi truyền electron bơm H⁺ ra khoang gian màng tạo chênh lệch điện hóa. H⁺ chảy ngược qua ATP synthase làm quay rotor, giống nước quay tuabin, và năng lượng đó gắn ADP + Pi thành ATP (thuyết hóa thẩm).' },
+  { topic: 'Nhà máy điện của tế bào',
+    q: 'Nếu ví ti thể là một nhà máy điện của tế bào, thì “điện năng” được phân phối đi khắp tế bào tương ứng với chất nào?',
+    opts: ['ATP', 'Glucose', 'Khí O₂', 'ADN ti thể'],
+    a: 0,
+    exp: 'ATP chính là “điện năng” – dạng năng lượng sẵn dùng của tế bào. Glucose / acid béo giống nhiên liệu, O₂ là chất oxy hóa, CO₂ và hơi nước là khí thải qua “ống khói”, còn ADN là bản thiết kế của nhà máy.' }
+];
+
+/* =====================================================================
+   KHỞI TẠO ỨNG DỤNG
+   ===================================================================== */
+function boot(LIBS) {
+  const { THREE, OrbitControls, EffectComposer, RenderPass, UnrealBloomPass, OutputPass, RoomEnvironment } = LIBS;
+  const { Vector3, Color, Group, Mesh } = THREE;
+  const ADD = THREE.AdditiveBlending, NRM = THREE.NormalBlending;
+  const TAU = Math.PI * 2, PI = Math.PI;
+  const Y = new Vector3(0, 1, 0);
+
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+  const easeInOut = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const easeOutBack = t => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+  const pm = (a, b) => ((a % b) + b) % b;
+  const rng = (() => { let a = 20261111; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; })();
+  const isMobile = matchMedia('(max-width:760px)').matches || /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent);
+  const Q = isMobile ? 0.6 : 1;
+
+  /* ---------- Renderer ---------- */
+  const canvas = $('#scene');
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+  } catch (e) {
+    showError('<b>Không khởi tạo được WebGL</b>Trình duyệt hoặc thiết bị của bạn chưa hỗ trợ / đã tắt WebGL. Hãy thử Chrome, Edge, Firefox hoặc Safari bản mới.');
+    return;
+  }
+  const DPR = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 1.75);
+  renderer.setPixelRatio(DPR);
+  renderer.setSize(innerWidth, innerHeight, false);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.95;
+
+  const scene = new THREE.Scene();
+  scene.background = new Color(0x0b1628);
+  scene.fog = new THREE.FogExp2(0x0b1628, 0.011);
+  // Nền nhà máy: bầu trời hoàng hôn công nghiệp + đường chân trời có dãy nhà xưởng (chỉ hiện khi sang chế độ Nhà máy)
+  const skyU = { uM: { value: 0 }, uTopA: { value: new Color(0x0b1628) }, uBotA: { value: new Color(0x0b1628) },
+    uTopB: { value: new Color(0x1a2740) }, uBotB: { value: new Color(0x7a4a22) }, uSil: { value: new Color(0x23252d) }, uT: { value: 0 } };
+  const sky = new Mesh(new THREE.SphereGeometry(200, 32, 16), new THREE.ShaderMaterial({
+    uniforms: skyU, side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false,
+    vertexShader: 'varying vec3 vD; void main(){ vD = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform float uM, uT; uniform vec3 uTopA, uBotA, uTopB, uBotB, uSil; varying vec3 vD;
+      float hs(float n){ return fract(sin(n * 91.7) * 4375.5); }
+      float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5); }
+      float nz(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(h2(i), h2(i + vec2(1.0, 0.0)), f.x), mix(h2(i + vec2(0.0, 1.0)), h2(i + vec2(1.0, 1.0)), f.x), f.y); }
+      float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 4; i++){ v += a * nz(p); p *= 2.03; a *= 0.5; } return v; }
+      vec2 city(float az, float h, float cells, float hMax, float seed){
+        float u = az * cells, id = floor(u), f = fract(u);
+        float bh = hMax * (0.25 + 0.75 * hs(id + seed));
+        bh += hMax * 0.16 * step(0.7, hs(id + seed + 9.0)) * step(abs(f - 0.3), 0.18);
+        float ch = step(0.9, hs(id + seed + 5.0)) * step(abs(f - 0.5), 0.06);
+        bh = max(bh, ch * hMax * 2.4);
+        float mk = 1.0 - smoothstep(bh - 0.0015, bh, h);
+        vec2 wc = vec2(f * 7.0, h * 260.0);
+        float win = step(0.74, h2(floor(wc) + id * 3.1 + seed)) * step(0.2, fract(wc.x)) * step(0.25, fract(wc.y)) * step(h, bh - 0.004) * step(0.004, h) * (1.0 - ch);
+        return vec2(mk, win * mk);
+      }
+      void main(){
+        vec3 d = normalize(vD); float h = d.y;
+        float az = atan(d.z, d.x) / 6.28318 + 0.5;
+        vec3 a = mix(uBotA, uTopA, smoothstep(-0.1, 0.5, h));
+        vec3 b = mix(uBotB, uTopB, smoothstep(-0.02, 0.5, h));
+        vec3 sd = normalize(vec3(0.55, 0.12, -0.83)); float s = max(dot(d, sd), 0.0);
+        b += vec3(0.85, 0.42, 0.14) * (0.22 * pow(s, 6.0) + 0.5 * pow(s, 80.0));
+        b += uBotB * 0.3 * exp(-pow(h / 0.1, 2.0));
+        vec2 cp = d.xz / (max(h, 0.0) + 0.2) * 1.4 + vec2(uT * 0.015, 0.0);
+        float cl = smoothstep(0.48, 0.85, fbm(cp)) * smoothstep(0.01, 0.12, h) * (1.0 - smoothstep(0.5, 0.9, h));
+        b = mix(b, mix(uBotB * 1.5, uTopB * 1.6, smoothstep(0.0, 0.5, h)), cl * 0.6);
+        vec3 haze = mix(uBotB * 0.6, uTopB, 0.3), wl = vec3(1.0, 0.68, 0.3);
+        vec2 c1 = city(az, h, 70.0, 0.045, 3.0), c2 = city(az, h, 44.0, 0.065, 11.0), c3 = city(az, h, 26.0, 0.09, 23.0);
+        b = mix(b, mix(uSil, haze, 0.6), c1.x);
+        b = mix(b, mix(uSil, haze, 0.3), c2.x);
+        b += wl * (c1.y * 0.12 * (1.0 - c2.x) * (1.0 - c3.x) + c2.y * 0.25 * (1.0 - c3.x));
+        b = mix(b, uSil + uBotB * 0.1 * exp(-max(-h, 0.0) * 6.0), c3.x);
+        b += wl * c3.y * 0.5;
+        gl_FragColor = vec4(mix(a, b, uM), 1.0);
+      }`
+  }));
+  sky.renderOrder = -100; sky.frustumCulled = false; scene.add(sky);
+  const fog0 = new Color(0x0b1628), fog1 = new Color(0x23252d);
+  const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 300);
+
+  const controls = new OrbitControls(camera, canvas);
+  controls.enableDamping = true; controls.dampingFactor = 0.06;
+  controls.minDistance = 2.2; controls.maxDistance = 48;
+  controls.autoRotate = true; controls.autoRotateSpeed = 0.9;
+  controls.screenSpacePanning = true; controls.rotateSpeed = 0.7;
+
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  const std = o => new THREE.MeshStandardMaterial(Object.assign({ envMapIntensity: 0.35 }, o));
+
+  /* ---------- Ánh sáng ---------- */
+  const hemi = new THREE.HemisphereLight(0x9ab8e0, 0x1a2238, 0.9); scene.add(hemi);
+  const hem0 = new Color(0x9ab8e0), hem1 = new Color(0xb89070), mg0 = new Color(0xc0508f), mg1 = new Color(0x6f86b0);
+  const key = new THREE.DirectionalLight(0xcfe8ff, 1.9); key.position.set(6, 9, 7); scene.add(key);
+  const lCy = new THREE.PointLight(0x4aa3d8, 30, 0, 2); lCy.position.set(-6, 3, 5); scene.add(lCy);
+  const lMg = new THREE.PointLight(0xc0508f, 25, 0, 2); lMg.position.set(6, -2, 6); scene.add(lMg);
+  const lAm = new THREE.PointLight(0xd98a3a, 25, 0, 2); lAm.position.set(2, 3, -6); scene.add(lAm);
+  const lCore = new THREE.PointLight(0xff9a4a, 10, 7, 2); lCore.position.set(0, 0, 0); scene.add(lCore);
+
+  /* ---------- Hậu kỳ: bloom neon ---------- */
+  const rt = new THREE.WebGLRenderTarget(innerWidth * DPR, innerHeight * DPR, { type: THREE.HalfFloatType, samples: DPR > 1.4 ? 0 : 4 });
+  const composer = new EffectComposer(renderer, rt);
+  composer.setPixelRatio(DPR);
+  composer.setSize(innerWidth, innerHeight);
+  composer.addPass(new RenderPass(scene, camera));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.1, 0.4, 0.96);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+
+  const uTime = { value: 0 };
+  const uScale = { value: 1 };
+  const updScale = () => { uScale.value = renderer.domElement.height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)); };
+  updScale();
+
+  const root = new Group(); scene.add(root);
+  const mito = new Group(); root.add(mito);
+  const factory = new Group(); root.add(factory);
+
+  /* =================================================================
+     HÌNH HỌC MÀNG
+     ================================================================= */
+  const L_OUT = 4.2, R_OUT = 1.95, L_IN = 3.85, R_IN = 1.62, PN = 2.6;
+  const CR = { n: 7, w: 0.04, depth: 0.6 };
+  const cristaT = Array.from({ length: CR.n }, (_, k) => -0.75 + k * 0.25);
+  const profile = t => { const a = Math.abs(t); return a >= 1 ? 0 : Math.pow(1 - Math.pow(a, PN), 1 / PN); };
+
+  function foldDepth(t, th) {
+    let d = 0; const s = Math.sin(th);
+    for (let k = 0; k < CR.n; k++) {
+      const dt = (t - cristaT[k]) / CR.w;
+      if (dt > 2 || dt < -2) continue;
+      const g = Math.exp(-dt * dt * dt * dt);
+      const side = (k % 2 === 0) ? s : -s;
+      const mask = smooth(-0.12, 0.5, side);
+      d = Math.max(d, g * mask * CR.depth * (0.9 + 0.1 * Math.cos(k * 1.9)));
+    }
+    return d;
+  }
+  function outerP(t, th, o) {
+    const r = R_OUT * profile(t) * (1 + 0.012 * Math.sin(th * 3 + t * 5));
+    return o.set(L_OUT * t, r * Math.sin(th), r * Math.cos(th));
+  }
+  function innerP(t, th, o, sc = 1) {
+    const r = R_IN * profile(t) * (1 - foldDepth(t, th)) * sc;
+    return o.set(L_IN * t, r * Math.sin(th), r * Math.cos(th));
+  }
+  const _p1 = new Vector3(), _p2 = new Vector3(), _d1 = new Vector3(), _d2 = new Vector3();
+  function surfPN(fn, t, th, P, N) {
+    fn(t, th, P);
+    fn(t + 1e-3, th, _p1); fn(t - 1e-3, th, _p2); _d1.subVectors(_p1, _p2);
+    fn(t, th + 2e-3, _p1); fn(t, th - 2e-3, _p2); _d2.subVectors(_p1, _p2);
+    return N.crossVectors(_d1, _d2).normalize();
+  }
+
+  function buildSurface(fn, nT, nTh, withFold) {
+    const vc = (nT + 1) * (nTh + 1);
+    const pos = new Float32Array(vc * 3), uv = new Float32Array(vc * 2);
+    const fold = withFold ? new Float32Array(vc) : null;
+    const v = new Vector3();
+    for (let i = 0; i <= nT; i++) {
+      const t = -1 + 2 * i / nT;
+      for (let j = 0; j <= nTh; j++) {
+        const th = j / nTh * TAU, o = i * (nTh + 1) + j;
+        fn(t, th, v);
+        pos[o * 3] = v.x; pos[o * 3 + 1] = v.y; pos[o * 3 + 2] = v.z;
+        uv[o * 2] = i / nT; uv[o * 2 + 1] = j / nTh;
+        if (fold) fold[o] = foldDepth(t, th);
+      }
+    }
+    const idx = [];
+    for (let i = 0; i < nT; i++) for (let j = 0; j < nTh; j++) {
+      const a = i * (nTh + 1) + j, b = a + 1, c = a + nTh + 1, d = c + 1;
+      idx.push(a, c, b, b, c, d);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    if (fold) g.setAttribute('aFold', new THREE.BufferAttribute(fold, 1));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    const n = g.attributes.normal;
+    for (let i = 0; i <= nT; i++) {
+      const a = i * (nTh + 1), b = a + nTh;
+      let x = n.getX(a) + n.getX(b), y = n.getY(a) + n.getY(b), z = n.getZ(a) + n.getZ(b);
+      const l = Math.hypot(x, y, z) || 1; x /= l; y /= l; z /= l;
+      n.setXYZ(a, x, y, z); n.setXYZ(b, x, y, z);
+    }
+    for (let j = 0; j <= nTh; j++) { n.setXYZ(j, -1, 0, 0); n.setXYZ(nT * (nTh + 1) + j, 1, 0, 0); }
+    return g;
+  }
+
+  /* =================================================================
+     SHADER MÀNG (holographic neon)
+     ================================================================= */
+  const shellVS = withFold => `
+    ${withFold ? 'attribute float aFold;' : ''}
+    varying vec3 vN; varying vec3 vV; varying vec2 vUv; varying vec3 vObj; varying float vFold;
+    void main(){
+      vUv = uv; vObj = position; vFold = ${withFold ? 'aFold' : '0.0'};
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      vN = normalize(normalMatrix * normal); vV = -mv.xyz;
+      gl_Position = projectionMatrix * mv;
+    }`;
+
+  // Mặt cắt (cutaway): khoét một "cửa sổ" ở mặt trước để nhìn thấy mào ti thể bên trong
+  const CUT_MIN = 1.3;                       // góc tối thiểu (rad) để đặt enzyme/electron: chỉ ở phần màng còn lại
+  const uCutAng = { value: 0 }, uCutX = { value: 3.1 };
+  const CUT_GLSL = `
+    uniform float uCutAng, uCutX;
+    float cutSD(vec3 o){
+      float r = max(length(o.yz), 0.001);
+      float ang = abs(atan(o.y, o.z));
+      return min((uCutAng - ang) * r, uCutX - abs(o.x));
+    }`;
+
+  // Màng ngoài: kính neon trong suốt, chỉ viền sáng + lưới mảnh (không còn cộng sáng làm "cháy" hình)
+  const outerFS = `
+    uniform float uTime, uWipe, uEdge, uGain;
+    uniform vec3 cBio, cBio2, cFac, cFac2;
+    varying vec3 vN; varying vec3 vV; varying vec2 vUv; varying vec3 vObj; varying float vFold;
+    ${CUT_GLSL}
+    float gridL(float x, float w){ float d = abs(fract(x) - 0.5); return smoothstep(0.5 - w, 0.5, d); }
+    void main(){
+      float sd = cutSD(vObj);
+      if (sd > 0.0) discard;
+      vec3 n = normalize(vN), v = normalize(vV);
+      if (dot(n, v) < 0.0) n = -n;
+      float fr = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 2.4);
+      float k = 1.0 - smoothstep(uWipe - 0.55, uWipe + 0.55, vObj.x);
+      float gx = vUv.x * 64.0, gy = vUv.y * 44.0;
+      float lines = max(gridL(gx, 1.5 * fwidth(gx)), gridL(gy, 1.5 * fwidth(gy)));
+      float px = vUv.x * 16.0, py = vUv.y * 10.0;
+      float panel = max(gridL(px, 1.8 * fwidth(px)), gridL(py, 1.8 * fwidth(py)));
+      vec2 q = (fract(vec2(px, py) + 0.5) - 0.5) * vec2(0.48, 1.2);
+      float riv = 1.0 - smoothstep(0.03, 0.055, length(q));
+      float aBio = 0.03 + 0.5 * fr + lines * 0.12;
+      float aFac = 0.05 + 0.34 * fr + panel * 0.22 + riv * 0.5;
+      float a = mix(aBio, aFac, k);
+      vec3 col = mix(mix(cBio, cBio2, fr), mix(cFac, cFac2, fr), k);
+      a += pow(max(0.0, sin(vUv.x * 40.0 - uTime * 1.4)), 24.0) * 0.07 * (1.0 - k);
+      float e = exp(-pow((vObj.x - uWipe) / 0.16, 2.0)) * uEdge;
+      col += vec3(1.0, 0.95, 0.8) * e * 0.5; a += e * 0.9;
+      float ce = uCutAng > 0.02 ? smoothstep(-0.1, 0.0, sd) : 0.0;
+      col = mix(col, vec3(0.15, 0.55, 0.75), ce); a = max(a, ce * 0.95);
+      gl_FragColor = vec4(col * uGain, clamp(a, 0.0, 1.0));
+    }`;
+
+  // Màng trong: bề mặt ĐẶC, có đổ bóng 3D (khuếch tán + bóng + viền sáng) để thấy rõ từng mào
+  const innerFS = `
+    uniform float uTime, uGain;
+    uniform vec3 cA, cB, cEl;
+    varying vec3 vN; varying vec3 vV; varying vec2 vUv; varying vec3 vObj; varying float vFold;
+    ${CUT_GLSL}
+    float gridL(float x, float w){ float d = abs(fract(x) - 0.5); return smoothstep(0.5 - w, 0.5, d); }
+    void main(){
+      float sd = cutSD(vObj);
+      if (sd > 0.0) discard;
+      vec3 n = normalize(vN), v = normalize(vV);
+      if (dot(n, v) < 0.0) n = -n;
+      float fold = smoothstep(0.03, 0.55, vFold);
+      vec3 L1 = normalize(vec3(0.45, 0.8, 0.55));
+      vec3 L2 = normalize(vec3(-0.7, -0.25, 0.45));
+      float d1 = max(dot(n, L1), 0.0), d2 = max(dot(n, L2), 0.0);
+      float wrap = 0.5 + 0.5 * dot(n, L1);
+      vec3 hv = normalize(L1 + v);
+      float spec = pow(max(dot(n, hv), 0.0), 40.0);
+      float rim = pow(1.0 - max(dot(n, v), 0.0), 2.6);
+      vec3 base = mix(cA, cB, fold);
+      float gx = vUv.x * 90.0, gy = vUv.y * 56.0;
+      float lines = max(gridL(gx, 1.3 * fwidth(gx)), gridL(gy, 1.3 * fwidth(gy)));
+      float flow = pow(max(0.0, sin(vUv.y * 43.98 - vUv.x * 56.55 - uTime * 2.4)), 18.0) * (0.25 + 0.9 * fold);
+      vec3 col = base * (0.28 + 0.55 * wrap + 0.6 * d1 + 0.25 * d2) + vec3(spec) * 0.22
+               + cEl * (rim * 0.35 + flow * 0.5) + base * lines * 0.25;
+      float ce = uCutAng > 0.02 ? smoothstep(-0.1, 0.0, sd) : 0.0;
+      col = mix(col, vec3(0.7, 0.22, 0.55), ce);
+      gl_FragColor = vec4(col * uGain, 1.0);
+    }`;
+
+  // Chất nền: lớp sương rất mảnh
+  const fillFS = `
+    uniform float uTime, uGain; uniform vec3 uColor;
+    varying vec3 vN; varying vec3 vV; varying vec2 vUv; varying vec3 vObj; varying float vFold;
+    ${CUT_GLSL}
+    void main(){
+      if (cutSD(vObj) > 0.0) discard;
+      vec3 n = normalize(vN), v = normalize(vV);
+      float fc = abs(dot(n, v));
+      float a = (0.02 + 0.06 * pow(fc, 1.5)) * uGain;
+      gl_FragColor = vec4(uColor * (0.75 + 0.25 * sin(uTime * 0.7 + vObj.x * 1.3)), a);
+    }`;
+
+  const outerU = {
+    uTime, uCutAng, uCutX, uWipe: { value: -9 }, uEdge: { value: 0 }, uGain: { value: 1 },
+    cBio: { value: new Color(0x1f8aa8) }, cBio2: { value: new Color(0x2f6fc4) },
+    cFac: { value: new Color(0xd9791a) }, cFac2: { value: new Color(0xe8a640) }
+  };
+  const innerU = {
+    uTime, uCutAng, uCutX, uGain: { value: 1.0 },
+    cA: { value: new Color(0x2a2a8a) }, cB: { value: new Color(0xa8328a) }, cEl: { value: new Color(0x3a9cc8) }
+  };
+  const fillU = { uTime, uCutAng, uCutX, uGain: { value: 1 }, uColor: { value: new Color(0x4a6fb8) } };
+  const shellMat = (u, vs, fs, opts) => new THREE.ShaderMaterial(Object.assign({
+    uniforms: u, vertexShader: vs, fragmentShader: fs, transparent: true, depthWrite: false,
+    blending: THREE.NormalBlending, side: THREE.DoubleSide
+  }, opts));
+
+  const outerMesh = new Mesh(buildSurface(outerP, 220, 96, false), shellMat(outerU, shellVS(false), outerFS));
+  outerMesh.renderOrder = 4; mito.add(outerMesh);
+  const innerMesh = new Mesh(buildSurface(innerP, 400, 128, true), shellMat(innerU, shellVS(true), innerFS, { transparent: false, depthWrite: true }));
+  innerMesh.renderOrder = 1; mito.add(innerMesh);
+  const fillMesh = new Mesh(buildSurface((t, th, o) => innerP(t, th, o, 0.93), 160, 64, false), shellMat(fillU, shellVS(false), fillFS));
+  fillMesh.renderOrder = 2; mito.add(fillMesh);
+
+  /* ---------- Sprite phát sáng dùng chung ---------- */
+  function makeGlowTex() {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const x = c.getContext('2d');
+    const g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.25, 'rgba(255,255,255,.55)');
+    g.addColorStop(.6, 'rgba(255,255,255,.12)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  }
+  const glowTex = makeGlowTex();
+
+  /* ---------- Hạt lấp lánh (chất nền, bụi tế bào chất) ---------- */
+  const twinkleVS = `
+    attribute float aPh; attribute float aSz;
+    uniform float uTime; uniform float uScale; uniform float uDrift;
+    varying float vA;
+    void main(){
+      vec3 p = position + uDrift * vec3(sin(uTime * 0.6 + aPh * 6.0), cos(uTime * 0.5 + aPh * 9.0), sin(uTime * 0.7 + aPh * 4.0));
+      vec4 mv = modelViewMatrix * vec4(p, 1.0);
+      gl_PointSize = max(1.0, aSz * uScale / (-mv.z));
+      vA = 0.55 + 0.45 * sin(uTime * 1.5 + aPh * 20.0);
+      gl_Position = projectionMatrix * mv;
+    }`;
+  const twinkleFS = `
+    uniform vec3 uColor; uniform float uOpacity; varying float vA;
+    void main(){
+      float d = length(gl_PointCoord - 0.5);
+      float a = smoothstep(0.5, 0.2, d);
+      gl_FragColor = vec4(uColor, a * vA * uOpacity);
+    }`;
+  function makeTwinkle(pos, szMin, szMax, color, opacity, drift) {
+    const n = pos.length / 3, ph = new Float32Array(n), sz = new Float32Array(n);
+    for (let i = 0; i < n; i++) { ph[i] = rng(); sz[i] = lerp(szMin, szMax, rng()); }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('aPh', new THREE.BufferAttribute(ph, 1));
+    g.setAttribute('aSz', new THREE.BufferAttribute(sz, 1));
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uTime, uScale, uColor: { value: new Color(color) }, uOpacity: { value: opacity }, uDrift: { value: drift } },
+      vertexShader: twinkleVS, fragmentShader: twinkleFS, transparent: true, depthWrite: false, blending: NRM
+    });
+    const p = new THREE.Points(g, mat); p.frustumCulled = false; return p;
+  }
+
+  function randomMatrixPoint(out, scale = 0.86) {
+    const t = (rng() * 2 - 1) * 0.94, th = rng() * TAU;
+    const rs = R_IN * profile(t) * (1 - foldDepth(t, th)) * scale * Math.sqrt(rng());
+    return out.set(L_IN * t, rs * Math.sin(th), rs * Math.cos(th));
+  }
+
+  // enzyme / chất tan trong chất nền
+  {
+    const n = Math.floor(320 * Q), pos = new Float32Array(n * 3), v = new Vector3();
+    for (let i = 0; i < n; i++) { randomMatrixPoint(v, 0.9); pos.set([v.x, v.y, v.z], i * 3); }
+    mito.add(makeTwinkle(pos, 0.035, 0.075, 0xd9a040, 0.85, 0.05));
+  }
+  // bụi tế bào chất ở nền
+  const dust = (() => {
+    const n = Math.floor(520 * Q), pos = new Float32Array(n * 3), v = new Vector3();
+    for (let i = 0; i < n; i++) {
+      v.set(rng() - .5, rng() - .5, rng() - .5).normalize().multiplyScalar(14 + rng() * 26);
+      v.y *= 0.7; v.x += 3;
+      pos.set([v.x, v.y, v.z], i * 3);
+    }
+    const p = makeTwinkle(pos, 0.08, 0.22, 0x5a8ad0, 0.45, 0.35);
+    scene.add(p); return p;
+  })();
+
+  /* =================================================================
+     ADN TI THỂ (vòng xoắn kép)
+     ================================================================= */
+  class HelixCurve extends THREE.Curve {
+    constructor(R, a, turns, phase) { super(); this.R = R; this.a = a; this.turns = turns; this.phase = phase; }
+    getPoint(u, target = new Vector3()) {
+      const phi = u * TAU, cx = Math.cos(phi), sz = Math.sin(phi);
+      const ang = u * this.turns * TAU + this.phase;
+      const ca = Math.cos(ang), sa = Math.sin(ang);
+      return target.set((this.R + this.a * ca) * cx, this.a * sa, (this.R + this.a * ca) * sz);
+    }
+  }
+  function makeDNA(R, turns) {
+    const g = new Group(), a = 0.07;
+    const cA = new HelixCurve(R, a, turns, 0), cB = new HelixCurve(R, a, turns, PI);
+    const mA = std({ color: 0x3c9d4a, emissive: 0x1f6b2a, emissiveIntensity: 0.35, roughness: .4, metalness: .2 });
+    const mB = std({ color: 0x2a8fc9, emissive: 0x14558a, emissiveIntensity: 0.35, roughness: .4, metalness: .2 });
+    g.add(new Mesh(new THREE.TubeGeometry(cA, 480, 0.02, 6, true), mA));
+    g.add(new Mesh(new THREE.TubeGeometry(cB, 480, 0.02, 6, true), mB));
+    const pts = [], steps = turns * 7, pa = new Vector3(), pb = new Vector3();
+    for (let i = 0; i < steps; i++) { const u = i / steps; cA.getPoint(u, pa); cB.getPoint(u, pb); pts.push(pa.x, pa.y, pa.z, pb.x, pb.y, pb.z); }
+    const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    g.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0xc0508f, transparent: true, opacity: .8, blending: NRM })));
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x3c9d4a, blending: NRM, depthWrite: false, transparent: true, opacity: .1 }));
+    halo.scale.setScalar(1.9); g.add(halo);
+    return g;
+  }
+  const dna1 = makeDNA(0.46, 18); dna1.position.set(-1.45, 0, 0); dna1.rotation.set(0.15, 0, 0.12);
+  const dna2 = makeDNA(0.42, 16); dna2.position.set(1.45, 0, 0.05); dna2.rotation.set(-0.2, 0.5, -0.1);
+  mito.add(dna1, dna2);
+  const dnaL1 = new THREE.PointLight(0x7dff6b, 3, 3, 2); dnaL1.position.copy(dna1.position); mito.add(dnaL1);
+
+  /* =================================================================
+     RIBOSOME
+     ================================================================= */
+  const dummy = new THREE.Object3D();
+  const RIB_HERO = [new Vector3(0.5, -0.35, 0.5), new Vector3(-0.5, 0.3, -0.45), new Vector3(1.2, 0.2, 0.4), new Vector3(-2.2, -0.2, 0.3)];
+  const RIB_N = 4 + Math.floor(150 * Q);
+  const ribBase = [], ribPh = [], ribDir = [], ribS = [];
+  for (let i = 0; i < RIB_N; i++) {
+    const v = new Vector3();
+    if (i < RIB_HERO.length) { v.copy(RIB_HERO[i]); ribS.push(1.6); } else { randomMatrixPoint(v, 0.85); ribS.push(0.8 + rng() * 0.5); }
+    ribBase.push(v); ribPh.push(rng() * TAU);
+    ribDir.push(new Vector3(rng() - .5, rng() - .5, rng() - .5).normalize());
+  }
+  const ribMatA = std({ color: 0x6fa8dc, emissive: 0x1f5a99, emissiveIntensity: 0.3, roughness: .4 });
+  const ribMatB = std({ color: 0xd98ab8, emissive: 0x8a2a60, emissiveIntensity: 0.3, roughness: .4 });
+  const ribLarge = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.05, 1), ribMatA, RIB_N);
+  const ribSmall = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.034, 1), ribMatB, RIB_N);
+  ribLarge.instanceMatrix.setUsage(THREE.DynamicDrawUsage); ribSmall.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  ribLarge.frustumCulled = false; ribSmall.frustumCulled = false;
+  mito.add(ribLarge, ribSmall);
+
+  /* =================================================================
+     ATP SYNTHASE (gắn trên màng trong)
+     ================================================================= */
+  const SYN_N = Math.floor(64 * (isMobile ? 0.75 : 1));
+  const syn = [];
+  {
+    const P = new Vector3(), N = new Vector3(); let guard = 0;
+    while (syn.length < SYN_N && guard++ < 4000) {
+      let t, th;
+      if (rng() < 0.78) {
+        const k = (rng() * CR.n) | 0, top = k % 2 === 0;
+        t = cristaT[k] + (rng() - 0.5) * CR.w * 2.6;
+        th = top ? CUT_MIN + rng() * (PI - 0.15 - CUT_MIN) : PI + 0.15 + rng() * (PI - 0.15 - CUT_MIN);
+      } else { t = (rng() * 2 - 1) * 0.88; th = CUT_MIN + rng() * (TAU - 2 * CUT_MIN); }
+      surfPN(innerP, t, th, P, N);
+      if (syn.some(s => s.P.distanceToSquared(P) < 0.05)) continue;
+      const Nin = N.clone().negate();
+      syn.push({ t, th, P: P.clone(), N: N.clone(), Nin, q: new THREE.Quaternion().setFromUnitVectors(Y, Nin), ph: rng() * TAU, flash: 0 });
+    }
+  }
+  const SN = syn.length;
+  const synBase = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.045, 0.05, 0.07, 12), std({ color: 0xc23a7c, emissive: 0x701244, emissiveIntensity: 0.35, roughness: .45 }), SN);
+  const synStalk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.016, 0.016, 0.09, 8), std({ color: 0xd9c58a, emissive: 0x8a5a10, emissiveIntensity: 0.3 }), SN);
+  const synHead = new THREE.InstancedMesh(new THREE.SphereGeometry(0.058, 16, 12), std({ color: 0xd9961a, emissive: 0x8a4a00, emissiveIntensity: 0.4, metalness: .4, roughness: .35 }), SN);
+  const synRotor = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.014, 0.014), std({ color: 0xf2e6c8, emissive: 0xc8b070, emissiveIntensity: 0.3 }), SN);
+  [synHead, synRotor].forEach(m => { m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; });
+  [synBase, synStalk].forEach(m => { m.frustumCulled = false; });
+  for (let i = 0; i < SN; i++) {
+    const s = syn[i];
+    dummy.quaternion.copy(s.q); dummy.scale.setScalar(1);
+    dummy.position.copy(s.P); dummy.updateMatrix(); synBase.setMatrixAt(i, dummy.matrix);
+    dummy.position.copy(s.P).addScaledVector(s.Nin, 0.075); dummy.updateMatrix(); synStalk.setMatrixAt(i, dummy.matrix);
+  }
+  mito.add(synBase, synStalk, synHead, synRotor);
+  const tmpQ = new THREE.Quaternion();
+
+  /* =================================================================
+     DÒNG ELECTRON & PROTON
+     ================================================================= */
+  const dotsVS = `
+    attribute float aSz; attribute float aA; uniform float uScale; varying float vA;
+    void main(){
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = max(1.0, aSz * uScale / (-mv.z)); vA = aA;
+      gl_Position = projectionMatrix * mv;
+    }`;
+  const dotsFS = `
+    uniform vec3 uColor; uniform float uOpacity; varying float vA;
+    void main(){
+      float d = length(gl_PointCoord - 0.5);
+      float a = smoothstep(0.5, 0.2, d);
+      float core = smoothstep(0.2, 0.0, d);
+      gl_FragColor = vec4(uColor * (1.0 + core * 0.2), a * vA * uOpacity);
+    }`;
+  function makeDots(n, color, size, opacity) {
+    const g = new THREE.BufferGeometry();
+    const pos = new Float32Array(n * 3), a = new Float32Array(n), s = new Float32Array(n);
+    for (let i = 0; i < n; i++) s[i] = size * (0.7 + 0.6 * rng());
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('aA', new THREE.BufferAttribute(a, 1).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('aSz', new THREE.BufferAttribute(s, 1));
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uScale, uColor: { value: new Color(color) }, uOpacity: { value: opacity } },
+      vertexShader: dotsVS, fragmentShader: dotsFS, transparent: true, depthWrite: false, blending: NRM
+    });
+    const points = new THREE.Points(g, mat); points.frustumCulled = false;
+    return { points, pos, a, g };
+  }
+
+  const EL_N = Math.floor(240 * Q);
+  const electrons = makeDots(EL_N, 0x1f8fd0, 0.075, 1.0);
+  const elData = [];
+  for (let i = 0; i < EL_N; i++) {
+    const k = i % CR.n, top = k % 2 === 0;
+    elData.push({
+      t: cristaT[k] + (rng() < 0.5 ? -1 : 1) * CR.w * (0.55 + 0.5 * rng()),
+      th0: top ? CUT_MIN : PI + 0.08, th1: top ? PI - 0.08 : TAU - CUT_MIN,
+      ph: rng(), sp: 0.10 + 0.08 * rng(), dir: rng() < 0.5 ? 1 : -1
+    });
+  }
+  const PR_N = Math.floor(210 * Q);
+  const protons = makeDots(PR_N, 0xd9481f, 0.07, 1.0);
+  const prData = [];
+  {
+    const P = new Vector3(), N = new Vector3();
+    for (let i = 0; i < PR_N; i++) {
+      const s = syn[(rng() * SN) | 0];
+      const t = clamp(s.t + (rng() - 0.5) * 0.16, -0.9, 0.9), th = s.th + (rng() - 0.5) * 0.7;
+      surfPN(innerP, t, th, P, N);
+      prData.push({
+        A: P.clone().addScaledVector(N, -0.22), B: P.clone().addScaledVector(N, 0.09),
+        C: s.P.clone().addScaledVector(s.N, 0.12).add(new Vector3(rng() - .5, rng() - .5, rng() - .5).multiplyScalar(0.06)),
+        D: s.P.clone().addScaledVector(s.Nin, 0.19), ph: rng(), sp: 0.07 + 0.06 * rng()
+      });
+    }
+  }
+  mito.add(electrons.points, protons.points);
+
+  /* =================================================================
+     ĐỒNG XU ATP
+     ================================================================= */
+  function makeCoinFace() {
+    const c = document.createElement('canvas'); c.width = c.height = 256;
+    const x = c.getContext('2d');
+    const g = x.createRadialGradient(128, 128, 10, 128, 128, 128);
+    g.addColorStop(0, '#f0c24a'); g.addColorStop(.55, '#d9a000'); g.addColorStop(1, '#b86e00');
+    x.fillStyle = g; x.beginPath(); x.arc(128, 128, 126, 0, TAU); x.fill();
+    x.lineWidth = 10; x.strokeStyle = 'rgba(255,255,255,.85)'; x.beginPath(); x.arc(128, 128, 112, 0, TAU); x.stroke();
+    x.fillStyle = '#7a3b00'; x.beginPath();
+    [[142, 28], [92, 116], [126, 116], [110, 172], [168, 84], [134, 84]].forEach(([a, b], i) => i ? x.lineTo(a, b) : x.moveTo(a, b));
+    x.closePath(); x.fill();
+    x.font = '800 44px "Be Vietnam Pro",Arial,sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText('ATP', 128, 214);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+  }
+  const coinGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.07, 40).rotateX(PI / 2);
+  const rimGeo = new THREE.TorusGeometry(0.2, 0.02, 10, 48);
+  const faceGeo = new THREE.CircleGeometry(0.186, 40);
+  const coinMat = std({ color: 0xd9a000, emissive: 0x8a5a00, emissiveIntensity: 0.35, metalness: 0.8, roughness: 0.28 });
+  const rimMat = new THREE.MeshBasicMaterial({ color: new Color().setRGB(0.85, 0.6, 0.1) });
+  const faceMat = new THREE.MeshBasicMaterial({ map: makeCoinFace(), color: new Color().setRGB(1, 1, 1) });
+  const haloMat = new THREE.SpriteMaterial({ map: glowTex, color: 0xd9a000, blending: NRM, depthWrite: false, transparent: true, opacity: 0.15 });
+  function makeCoin() {
+    const g = new Group();
+    g.add(new Mesh(coinGeo, coinMat), new Mesh(rimGeo, rimMat));
+    const f1 = new Mesh(faceGeo, faceMat); f1.position.z = 0.0355;
+    const f2 = new Mesh(faceGeo, faceMat); f2.position.z = -0.0355; f2.rotation.y = PI;
+    g.add(f1, f2);
+    const h = new THREE.Sprite(haloMat); h.scale.setScalar(1.15); g.add(h);
+    return g;
+  }
+  const COIN_N = Math.floor(16 * (isMobile ? 0.8 : 1));
+  const YB = -0.75;
+  const coins = [];
+  function pickStart(c, flash) {
+    const s = syn[(rng() * SN) | 0];
+    c.start.copy(s.P).addScaledVector(s.Nin, 0.22);
+    if (flash) s.flash = 1;
+  }
+  for (let i = 0; i < COIN_N; i++) {
+    const c = { g: makeCoin(), u: i / COIN_N, start: new Vector3(), ph: rng() * TAU };
+    pickStart(c, false); root.add(c.g); coins.push(c);
+  }
+  const PP = [new Vector3(), new Vector3(), new Vector3(), new Vector3(), new Vector3()];
+  const seg = [0, 0, 0, 0];
+  function updatePath(m) {
+    PP[1].set(2.5, 0, 0);
+    PP[2].set(4.55, -0.38 * m, 0);
+    PP[3].set(5.5, YB * m, 0);
+    PP[4].set(lerp(8.0, 12.55, m), YB * m, 0);
+  }
+  // cổng vận chuyển ở hai đầu ti thể (hiển thị ở chế độ sinh học)
+  const poreMat1 = new THREE.MeshBasicMaterial({ color: new Color().setRGB(0.1, 0.55, 0.75), blending: NRM, transparent: true, depthWrite: false });
+  const poreMat2 = new THREE.MeshBasicMaterial({ color: new Color().setRGB(0.7, 0.2, 0.45), blending: NRM, transparent: true, depthWrite: false });
+  const pore1 = new Mesh(new THREE.TorusGeometry(0.24, 0.028, 10, 40).rotateY(PI / 2), poreMat1); pore1.position.x = L_OUT - 0.02;
+  const pore2 = new Mesh(new THREE.TorusGeometry(0.2, 0.025, 10, 40).rotateY(PI / 2), poreMat2); pore2.position.x = L_IN - 0.02;
+  mito.add(pore1, pore2);
+
+  /* =================================================================
+     CHẾ ĐỘ NHÀ MÁY
+     ================================================================= */
+  const mSteel = std({ color: 0x8a97aa, metalness: 0.85, roughness: 0.35, emissive: 0x1a0d00, emissiveIntensity: 0.6 });
+  const mDark = std({ color: 0x1a2236, metalness: 0.6, roughness: 0.5 });
+  const mNeon = new THREE.MeshBasicMaterial({ color: new Color().setRGB(0.8, 0.45, 0.08) });
+  const appear = [];
+  const reg = (obj, a, b, mode = 'u') => { obj.visible = false; appear.push({ obj, a, b, mode }); return obj; };
+
+  /* --- Sàn lưới năng lượng --- */
+  const floorU = { uTime, uA: { value: 0 } };
+  const floor = new Mesh(new THREE.PlaneGeometry(90, 90).rotateX(-PI / 2), new THREE.ShaderMaterial({
+    uniforms: floorU, transparent: true, depthWrite: false, blending: ADD, side: THREE.DoubleSide,
+    vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    fragmentShader: `
+      uniform float uTime, uA; varying vec3 vW;
+      float gridL(float x){ float w = fwidth(x); float d = abs(fract(x - 0.5) - 0.5) / max(w, 1e-4); return 1.0 - min(d, 1.0); }
+      void main(){
+        vec2 p = vW.xz - vec2(3.6, 0.0);
+        float r = length(p);
+        float fade = exp(-r * 0.1);
+        float g1 = max(gridL(p.x * 0.5), gridL(p.y * 0.5));
+        float g2 = max(gridL(p.x * 2.0), gridL(p.y * 2.0)) * 0.22;
+        float m = mod(r - uTime * 2.2, 12.0);
+        float pr = exp(-pow(m / 0.3, 2.0)) + exp(-pow((12.0 - m) / 0.3, 2.0));
+        vec3 col = vec3(0.08, 0.30, 0.55) * (g1 * 0.6 + g2) + vec3(0.55, 0.28, 0.06) * pr * 0.5;
+        gl_FragColor = vec4(col * fade * uA, 1.0);
+      }`
+  }));
+  floor.position.y = -2.75; floor.visible = false; scene.add(floor);
+
+  /* --- Khung sườn nhà xưởng (ribs) + chân đỡ --- */
+  const ribs = [];
+  for (let i = 0; i < 9; i++) {
+    const t = -0.8 + i * 0.2, x = L_OUT * t;
+    const rb = new Mesh(new THREE.TorusGeometry(R_OUT * profile(t) * 1.012 + 0.03, 0.032, 10, 72).rotateY(PI / 2), mSteel);
+    rb.position.x = x; factory.add(rb);
+    const mx = (x + 4.9) / 9.8;
+    appear.push({ obj: rb, a: mx - 0.02, b: mx + 0.16, mode: 'u' }); rb.visible = false; ribs.push(rb);
+  }
+  const cradle = new Group(); cradle.position.y = -2.75; factory.add(cradle);
+  [[-2.1, 0.9], [-2.1, -0.9], [2.1, 0.9], [2.1, -0.9]].forEach(([x, z]) => {
+    const leg = new Mesh(new THREE.CylinderGeometry(0.08, 0.1, 1.11, 12).translate(0, 0.555, 0), mSteel); leg.position.set(x, 0, z);
+    const pad = new Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.07, 20), mDark); pad.position.set(x, 0.035, z);
+    cradle.add(leg, pad);
+  });
+  reg(cradle, 0.12, 0.45, 'y');
+
+  /* --- Ống khói --- */
+  function makeStripeTex() {
+    const c = document.createElement('canvas'); c.width = 16; c.height = 256;
+    const x = c.getContext('2d');
+    for (let i = 0; i < 8; i++) { x.fillStyle = i % 2 ? '#f1f1f1' : '#d63a2a'; x.fillRect(0, i * 32, 16, 32); }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  }
+  const stripeTex = makeStripeTex();
+  const CHIM = [{ x: -2.3, z: 0.15, h: 1.9, r: 0.2 }, { x: -0.9, z: -0.2, h: 2.5, r: 0.23 }, { x: 0.55, z: 0.2, h: 2.1, r: 0.21 }];
+  const chimTops = [];
+  CHIM.forEach((c, i) => {
+    const rOut = R_OUT * profile(c.x / L_OUT);
+    const by = Math.sqrt(Math.max(0, rOut * rOut - c.z * c.z)) - 0.18;
+    const g = new Group(); g.position.set(c.x, by, c.z);
+    g.add(new Mesh(new THREE.CylinderGeometry(c.r * 0.8, c.r, c.h, 24).translate(0, c.h / 2, 0),
+      std({ color: 0xffffff, map: stripeTex, roughness: .55, metalness: .25, emissive: 0x220606, emissiveIntensity: .5 })));
+    const collar = new Mesh(new THREE.CylinderGeometry(c.r * 1.55, c.r * 1.7, 0.32, 24), mSteel); collar.position.y = 0.1; g.add(collar);
+    const rim = new Mesh(new THREE.TorusGeometry(c.r * 0.88, 0.035, 10, 32).rotateX(PI / 2), new THREE.MeshBasicMaterial({ color: new Color().setRGB(0.85, 0.4, 0.1) }));
+    rim.position.y = c.h; g.add(rim);
+    const glow = new Mesh(new THREE.CircleGeometry(c.r * 0.8, 24).rotateX(-PI / 2), new THREE.MeshBasicMaterial({ color: new Color().setRGB(0.7, 0.32, 0.08) }));
+    glow.position.y = c.h - 0.02; g.add(glow);
+    g.userData.part = 'exhaust'; factory.add(g); reg(g, 0.3 + i * 0.07, 0.6 + i * 0.07, 'y');
+    chimTops.push(new Vector3(c.x, by + c.h, c.z));
+  });
+
+  /* --- Khói / hơi nước (hạt GPU) --- */
+  const smokeU = { uTime, uScale, uAmount: { value: 0 } };
+  const smoke = (() => {
+    const n = Math.floor(600 * Q), pos = new Float32Array(n * 3), seed = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) {
+      const t = chimTops[i % chimTops.length];
+      pos.set([t.x, t.y, t.z], i * 3);
+      seed.set([rng(), rng(), rng(), rng()], i * 4);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 4));
+    const p = new THREE.Points(g, new THREE.ShaderMaterial({
+      uniforms: smokeU, transparent: true, depthWrite: false,
+      vertexShader: `
+        attribute vec4 aSeed; uniform float uTime, uScale, uAmount; varying float vLife; varying float vA;
+        void main(){
+          float life = fract(aSeed.x + uTime * (0.09 + aSeed.w * 0.06));
+          vec3 p = position;
+          p.y += life * (3.0 + aSeed.y * 1.4);
+          p.x += life * life * 1.8 + sin(life * 5.0 + aSeed.y * 20.0) * 0.22 * life + (aSeed.y - 0.5) * 0.5 * life;
+          p.z += cos(life * 4.0 + aSeed.z * 20.0) * 0.22 * life + (aSeed.z - 0.5) * 0.6 * life;
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          float size = mix(0.28, 1.25, life) * (0.65 + aSeed.z * 0.7);
+          gl_PointSize = max(1.0, size * uScale / (-mv.z));
+          vLife = life;
+          vA = smoothstep(0.0, 0.07, life) * (1.0 - smoothstep(0.45, 1.0, life)) * uAmount;
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: `
+        varying float vLife; varying float vA;
+        void main(){
+          float d = length(gl_PointCoord - 0.5);
+          float a = smoothstep(0.5, 0.05, d); a *= a;
+          vec3 col = mix(vec3(1.0, 0.78, 0.55), vec3(0.55, 0.72, 0.95), smoothstep(0.0, 0.4, vLife));
+          gl_FragColor = vec4(col, a * vA * 0.42);
+        }`
+    }));
+    p.frustumCulled = false; p.visible = false; root.add(p); return p;
+  })();
+
+  /* --- Cổng nhà máy --- */
+  const gate = new Group(); gate.position.set(4.95, 0, 0); factory.add(gate);
+  [-0.95, 0.95].forEach(z => { const p = new Mesh(new THREE.BoxGeometry(0.24, 1.5, 0.24), mSteel); p.position.set(0, -0.2, z); gate.add(p); });
+  const lintel = new Mesh(new THREE.BoxGeometry(0.34, 0.3, 2.3), mSteel); lintel.position.y = 0.62; gate.add(lintel);
+  const neonStrip = new Mesh(new THREE.BoxGeometry(0.02, 0.07, 2.0), mNeon); neonStrip.position.set(0.18, 0.62, 0); gate.add(neonStrip);
+  const lamps = [-0.8, 0.8].map(z => {
+    const l = new Mesh(new THREE.SphereGeometry(0.075, 12, 10), new THREE.MeshBasicMaterial({ color: new Color().setRGB(0.8, 0.12, 0.08) }));
+    l.position.set(0, 0.84, z); gate.add(l); return l;
+  });
+  reg(gate, 0.5, 0.75, 'u');
+
+  /* --- Băng chuyền --- */
+  const BELT_X0 = 4.7, BELT_LEN = 8.0, BELT_TOP = -0.92;
+  function makeBeltTex() {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const x = c.getContext('2d');
+    x.fillStyle = '#0b1222'; x.fillRect(0, 0, 128, 128);
+    x.strokeStyle = '#d98a1e'; x.lineWidth = 14; x.lineJoin = 'round'; x.lineCap = 'round';
+    x.beginPath(); x.moveTo(34, 26); x.lineTo(84, 64); x.lineTo(34, 102); x.stroke();
+    x.fillStyle = 'rgba(255,255,255,.07)'; x.fillRect(0, 0, 128, 6); x.fillRect(0, 122, 128, 6);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(BELT_LEN, 1); return t;
+  }
+  const beltTex = makeBeltTex();
+  const beltGroup = new Group(); beltGroup.position.set(BELT_X0, 0, 0); factory.add(beltGroup);
+  const beltTopMat = new THREE.MeshStandardMaterial({ map: beltTex, emissiveMap: beltTex, emissive: 0xffffff, emissiveIntensity: 0.5, roughness: .6, metalness: .2, envMapIntensity: .2 });
+  const belt = new Mesh(new THREE.BoxGeometry(BELT_LEN, 0.14, 1.0).translate(BELT_LEN / 2, 0, 0), [mDark, mDark, beltTopMat, mDark, mDark, mDark]);
+  belt.position.y = BELT_TOP - 0.07; beltGroup.add(belt);
+  [-0.56, 0.56].forEach(z => {
+    const rail = new Mesh(new THREE.BoxGeometry(BELT_LEN, 0.18, 0.07).translate(BELT_LEN / 2, 0, 0), mSteel); rail.position.set(0, BELT_TOP + 0.02, z); beltGroup.add(rail);
+    const strip = new Mesh(new THREE.BoxGeometry(BELT_LEN, 0.02, 0.02).translate(BELT_LEN / 2, 0, 0), mNeon); strip.position.set(0, BELT_TOP + 0.12, z); beltGroup.add(strip);
+  });
+  reg(beltGroup, 0.55, 0.9, 'x');
+  const beltLegs = new Group(); beltLegs.position.y = BELT_TOP - 0.14; factory.add(beltLegs);
+  [6.0, 8.1, 10.2, 12.3].forEach(x => [-0.5, 0.5].forEach(z => {
+    const l = new Mesh(new THREE.CylinderGeometry(0.07, 0.08, 1.65, 10).translate(0, -0.825, 0), mSteel); l.position.set(x, 0, z); beltLegs.add(l);
+  }));
+  reg(beltLegs, 0.65, 0.92, 'y');
+
+  /* --- Vòng thu nhận ATP + biển nhỏ --- */
+  const FONT = '"Be Vietnam Pro","Segoe UI",Arial,sans-serif';
+  const rr = (x, a, b, w, h, r) => { x.beginPath(); x.moveTo(a + r, b); x.arcTo(a + w, b, a + w, b + h, r); x.arcTo(a + w, b + h, a, b + h, r); x.arcTo(a, b + h, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath(); };
+  const fitPx = (x, text, maxW, px, weight) => { let s = px; x.font = `${weight} ${s}px ${FONT}`; while (x.measureText(text).width > maxW && s > 20) { s -= 2; x.font = `${weight} ${s}px ${FONT}`; } return s; };
+
+  const recvCanvas = document.createElement('canvas'); recvCanvas.width = 1024; recvCanvas.height = 256;
+  function drawRecv() {
+    const x = recvCanvas.getContext('2d'); x.clearRect(0, 0, 1024, 256);
+    x.fillStyle = 'rgba(6,12,30,.88)'; rr(x, 6, 6, 1012, 244, 36); x.fill();
+    x.save(); x.shadowColor = '#35f2ff'; x.shadowBlur = 0; x.lineWidth = 6; x.strokeStyle = '#3aa6dc'; rr(x, 14, 14, 996, 228, 30); x.stroke(); x.restore();
+    x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#ffffff';
+    fitPx(x, 'ATP đến nơi cần năng lượng →', 900, 70, 800);
+    x.shadowColor = '#35f2ff'; x.shadowBlur = 0; x.fillText('ATP đến nơi cần năng lượng →', 512, 128);
+  }
+  drawRecv();
+  const recvTex = new THREE.CanvasTexture(recvCanvas); recvTex.colorSpace = THREE.SRGBColorSpace; recvTex.anisotropy = 4;
+  const recv = new Group(); recv.position.set(12.2, 0, 0); factory.add(recv);
+  const recvRing = new Mesh(new THREE.TorusGeometry(0.8, 0.06, 12, 56).rotateY(PI / 2), new THREE.MeshBasicMaterial({ color: new Color().setRGB(0.1, 0.5, 0.7), blending: NRM, transparent: true, depthWrite: false }));
+  recvRing.position.y = -0.35; recv.add(recvRing);
+  const recvRing2 = new Mesh(new THREE.TorusGeometry(0.58, 0.03, 10, 48).rotateY(PI / 2), new THREE.MeshBasicMaterial({ color: new Color().setRGB(0.6, 0.15, 0.45), blending: NRM, transparent: true, depthWrite: false }));
+  recvRing2.position.y = -0.35; recv.add(recvRing2);
+  const recvPlaneGeo = new THREE.PlaneGeometry(2.6, 0.65);
+  const recvMat = new THREE.MeshBasicMaterial({ map: recvTex, transparent: true, toneMapped: false });
+  const rp1 = new Mesh(recvPlaneGeo, recvMat); rp1.position.set(0, 1.1, 0); recv.add(rp1);
+  const rp2 = new Mesh(recvPlaneGeo, recvMat); rp2.position.set(0, 1.1, 0); rp2.rotation.y = PI; recv.add(rp2);
+  reg(recv, 0.78, 1.0, 'u');
+
+  /* --- Bảng hiệu lớn --- */
+  const signCanvas = document.createElement('canvas'); signCanvas.width = 2048; signCanvas.height = 640;
+  function drawSign() {
+    const W = 2048, H = 640, x = signCanvas.getContext('2d');
+    x.clearRect(0, 0, W, H);
+    const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#101a38'); g.addColorStop(1, '#050a1a');
+    x.fillStyle = g; rr(x, 6, 6, W - 12, H - 12, 48); x.fill();
+    x.save(); x.shadowColor = '#ffb23a'; x.shadowBlur = 0; x.lineWidth = 10; x.strokeStyle = '#d98a1e'; rr(x, 22, 22, W - 44, H - 44, 40); x.stroke(); x.restore();
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    if ('letterSpacing' in x) x.letterSpacing = '8px';
+    x.font = `700 46px ${FONT}`; x.fillStyle = '#6bb8e6';
+    x.fillText('NHÀ MÁY NĂNG LƯỢNG TẾ BÀO', W / 2, 98);
+    if ('letterSpacing' in x) x.letterSpacing = '0px';
+    const l1 = 'Ti thể - Chuyển hóa năng lượng,';
+    const s1 = fitPx(x, l1, 1840, 124, 800);
+    x.save(); x.shadowColor = '#35f2ff'; x.shadowBlur = 0; x.fillStyle = '#ffffff'; x.fillText(l1, W / 2, 290); x.restore();
+    const segs = [['tạo ra ', '#ffffff'], ['ATP', '#e0a000'], [' cho tế bào', '#ffffff']];
+    const s2 = 128; x.font = `800 ${s2}px ${FONT}`;
+    const widths = segs.map(s => x.measureText(s[0]).width), total = widths.reduce((a, b) => a + b, 0);
+    let px = (W - total) / 2; x.textAlign = 'left';
+    segs.forEach((s, i) => {
+      x.save(); x.shadowColor = s[1] === '#e0a000' ? '#ff9a14' : '#35f2ff'; x.shadowBlur = 0; x.fillStyle = s[1]; x.fillText(s[0], px, 465); x.restore();
+      px += widths[i];
+    });
+    x.textAlign = 'center';
+    x.fillStyle = 'rgba(217,138,30,1)'; rr(x, 300, 570, W - 600, 8, 4); x.fill();
+  }
+  drawSign();
+  const signTex = new THREE.CanvasTexture(signCanvas); signTex.colorSpace = THREE.SRGBColorSpace; signTex.anisotropy = 8;
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { drawSign(); signTex.needsUpdate = true; drawRecv(); recvTex.needsUpdate = true; });
+  const signMat = new THREE.MeshBasicMaterial({ map: signTex, transparent: true, toneMapped: false });
+  const sign = new Group(); sign.position.set(8.1, 2.25, -1.4); factory.add(sign);
+  const signGeo = new THREE.PlaneGeometry(5.2, 1.625);
+  const sp1 = new Mesh(signGeo, signMat); sp1.position.z = 0.03; sign.add(sp1);
+  const sp2 = new Mesh(signGeo, signMat); sp2.position.z = -0.03; sp2.rotation.y = PI; sign.add(sp2);
+  const frameT = 0.05;
+  [[0, 0.825, 5.3, frameT], [0, -0.825, 5.3, frameT], [-2.625, 0, frameT, 1.7], [2.625, 0, frameT, 1.7]].forEach(([x, y, w, h]) => {
+    const f = new Mesh(new THREE.BoxGeometry(w, h, 0.1), mNeon); f.position.set(x, y, 0); sign.add(f);
+  });
+  reg(sign, 0.72, 1.0, 'u');
+  const signPosts = new Group(); signPosts.position.set(8.1, -2.75, -1.4); factory.add(signPosts);
+  [-2.3, 2.3].forEach(x => { const p = new Mesh(new THREE.CylinderGeometry(0.06, 0.08, 4.25, 10).translate(0, 2.125, 0), mSteel); p.position.x = x; signPosts.add(p); });
+  reg(signPosts, 0.7, 0.95, 'y');
+
+  /* --- Bánh răng --- */
+  function makeGearGeo(N) {
+    const Rp = N * 0.05, tip = Rp + 0.07, root = Rp - 0.075, step = TAU / N, depth = 0.14;
+    const sh = new THREE.Shape();
+    for (let i = 0; i < N; i++) {
+      const a0 = i * step;
+      [[0, root], [0.12, tip], [0.38, tip], [0.5, root]].forEach(([f, r], j) => {
+        const a = a0 + f * step, px = Math.cos(a) * r, py = Math.sin(a) * r;
+        if (i === 0 && j === 0) sh.moveTo(px, py); else sh.lineTo(px, py);
+      });
+    }
+    sh.closePath();
+    const hole = new THREE.Path(); hole.absarc(0, 0, Rp * 0.28, 0, TAU, true); sh.holes.push(hole);
+    for (let k = 0; k < 5; k++) {
+      const a = k / 5 * TAU, hp = new THREE.Path();
+      hp.absarc(Math.cos(a) * Rp * 0.62, Math.sin(a) * Rp * 0.62, Rp * 0.13, 0, TAU, true); sh.holes.push(hp);
+    }
+    const geo = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelSize: 0.012, bevelThickness: 0.012, bevelSegments: 1, steps: 1, curveSegments: 20 });
+    geo.translate(0, 0, -depth / 2);
+    return geo;
+  }
+  const GN = [14, 9, 12], GX = [-1.75, -0.6, 0.45], gearGeos = GN.map(makeGearGeo);
+  const gearMat = std({ color: 0xa6b2c4, metalness: 0.9, roughness: 0.33, emissive: 0x3a1c00, emissiveIntensity: 0.7 });
+  const gearSets = [];
+  [2.2, -2.2].forEach(z => {
+    const set = new Group(); set.position.set(0, 0, z);
+    const gs = GN.map((N, i) => {
+      const gm = new Mesh(gearGeos[i], gearMat); gm.position.set(GX[i], -0.65, 0);
+      const hub = new Mesh(new THREE.TorusGeometry(N * 0.05 * 0.3, 0.02, 8, 28), mNeon); hub.position.z = 0.08; gm.add(hub);
+      const hub2 = hub.clone(); hub2.position.z = -0.08; gm.add(hub2);
+      const axle = new Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.45, 10).rotateX(PI / 2), mSteel); axle.position.z = (z > 0 ? -0.3 : 0.3); gm.add(axle);
+      set.add(gm); return gm;
+    });
+    const steps = GN.map(N => TAU / N);
+    const rot0 = [-0.25 * steps[0], pm(PI - 0.75 * steps[1], steps[1]), pm(PI - 0.75 * steps[2], steps[2])];
+    gs.forEach((g, i) => g.rotation.z = rot0[i]);
+    factory.add(set); reg(set, 0.2, 0.5, 'u'); gearSets.push({ gs, rot0 });
+  });
+
+  /* --- Vòng quét biến hình --- */
+  const scanMat = new THREE.MeshBasicMaterial({ color: new Color().setRGB(0.8, 0.55, 0.15), transparent: true, blending: NRM, depthWrite: false });
+  const scanRing = new Mesh(new THREE.TorusGeometry(1, 0.025, 10, 96).rotateY(PI / 2), scanMat);
+  scanRing.visible = false; root.add(scanRing);
+
+  function updateAppear(m) {
+    for (const o of appear) {
+      const p = smooth(o.a, o.b, m);
+      if (p <= 0.001) { o.obj.visible = false; continue; }
+      o.obj.visible = true;
+      const s = p >= 1 ? 1 : easeOutBack(p);
+      if (o.mode === 'y') o.obj.scale.set(1, s, 1);
+      else if (o.mode === 'x') o.obj.scale.set(s, 1, 1);
+      else o.obj.scale.setScalar(s);
+    }
+  }
+
+  /* =================================================================
+     ĐIỂM CHÚ THÍCH (HOTSPOT)
+     ================================================================= */
+  const DEG = PI / 180;
+  const aOuter = outerP(-0.55, 85 * DEG, new Vector3());
+  const aInner = innerP(0.5, 265 * DEG, new Vector3());
+  const aOuter2 = outerP(-0.8, 40 * DEG, new Vector3());
+  const aInner2 = innerP(-0.5, 265 * DEG, new Vector3());
+  const HSDEFS = [
+    { mode: 1, id: 'outer', info: 'outer', label: 'Màng ngoài', color: '#2a8fc9', anchor: aOuter },
+    { mode: 1, id: 'inner', info: 'inner', label: 'Màng trong (mào ti thể)', color: '#c63d8a', anchor: aInner },
+    { mode: 1, id: 'matrix', info: 'matrix', label: 'Chất nền', color: '#d9820f', anchor: new Vector3(2.4, 0.35, 0.3) },
+    { mode: 1, id: 'atp', info: 'atp', label: 'ATP', color: '#c98f00', anchor: new Vector3(4.7, 0.75, 0) },
+    { mode: 1, id: 'dna', info: 'dna', label: 'ADN ti thể', color: '#3c9d4a', anchor: new Vector3(-1.45, 0.5, 0) },
+    { mode: 1, id: 'ribo', info: 'ribo', label: 'Ribosome', color: '#4a86d4', anchor: RIB_HERO[0].clone().add(new Vector3(0, 0.08, 0)) },
+    { mode: 2, id: 'f_wall', info: 'outer', label: 'Tường nhà máy · Màng ngoài', color: '#2a8fc9', anchor: aOuter2 },
+    { mode: 2, id: 'f_line', info: 'inner', label: 'Dây chuyền · Màng trong', color: '#c63d8a', anchor: aInner2 },
+    { mode: 2, id: 'f_work', info: 'matrix', label: 'Phân xưởng · Chất nền', color: '#d9820f', anchor: new Vector3(1.45, 0.2, 0.2) },
+    { mode: 2, id: 'f_belt', info: 'atp', label: 'Băng chuyền ATP', color: '#c98f00', anchor: new Vector3(8.6, 0.0, 0.3) },
+    { mode: 2, id: 'f_chim', info: 'exhaust', label: 'Ống khói', color: '#7b8fae', anchor: chimTops[1].clone().add(new Vector3(0, 0.5, 0)) },
+    { mode: 2, id: 'f_ctrl', info: 'dna', label: 'Phòng điều khiển · ADN', color: '#3c9d4a', anchor: new Vector3(-1.45, 0.5, 0) }
+  ];
+  const labelsEl = $('#labels');
+  const HS = HSDEFS.map(d => {
+    const el = document.createElement('div'); el.className = 'hs'; el.style.setProperty('--c', d.color);
+    el.innerHTML = `<span class="dot">${INFO[d.info].icon}</span><span class="hit"></span><span class="tag">${d.label}</span>`;
+    el.addEventListener('click', e => { e.stopPropagation(); selectHS(d); });
+    labelsEl.appendChild(el); d.el = el; d.world = new Vector3(); return d;
+  });
+
+  /* =================================================================
+     TRẠNG THÁI, CAMERA & GIAO DIỆN
+     ================================================================= */
+  /* ---------- Sân nhà máy: mặt đất, ánh sáng và công trình xa dùng chung một bảng màu hoàng hôn ---------- */
+  const ground = new Mesh(new THREE.CircleGeometry(300, 48).rotateX(-PI / 2), new THREE.MeshBasicMaterial({ color: 0x23252d, transparent: true, opacity: 0, depthWrite: false }));
+  ground.position.set(3.6, -2.8, 0); ground.renderOrder = -60; ground.visible = false; scene.add(ground);
+  const YC = { x: 3.6, z: 0, S: 90 };
+  const YT = (() => {                                            // texture sân bê tông: khe co giãn, vạch an toàn, bóng đổ dưới nhà máy
+    const N = 2048, c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d');
+    const U = N / YC.S, X = v => (v - YC.x) * U + N / 2, Z = v => (v - YC.z) * U + N / 2;
+    x.fillStyle = '#34373f'; x.fillRect(0, 0, N, N);
+    for (let i = 0; i < 90; i++) { const px = rng() * N, py = rng() * N, r = 60 + rng() * 220, g = x.createRadialGradient(px, py, 0, px, py, r), v = rng() < .5 ? '0,0,0' : '255,235,210'; g.addColorStop(0, `rgba(${v},${0.05 + rng() * 0.06})`); g.addColorStop(1, `rgba(${v},0)`); x.fillStyle = g; x.fillRect(px - r, py - r, r * 2, r * 2); }
+    for (let i = 0; i < 9000; i++) { x.fillStyle = rng() < .5 ? 'rgba(0,0,0,.09)' : 'rgba(255,255,255,.05)'; x.fillRect(rng() * N, rng() * N, 1 + rng() * 2, 1 + rng() * 2); }
+    x.strokeStyle = 'rgba(0,0,0,.45)'; x.lineWidth = 3;
+    for (let v = -45; v <= 45; v += 5) { x.beginPath(); x.moveTo(X(YC.x + v), 0); x.lineTo(X(YC.x + v), N); x.moveTo(0, Z(YC.z + v)); x.lineTo(N, Z(YC.z + v)); x.stroke(); }
+    x.save(); x.translate(X(0), Z(0)); x.scale(1, .5); x.translate(-X(0), -Z(0));
+    const sg = x.createRadialGradient(X(0), Z(0), 0, X(0), Z(0), 6 * U); sg.addColorStop(0, 'rgba(0,0,0,.65)'); sg.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = sg; x.fillRect(0, 0, N, N); x.restore();
+    x.lineWidth = 0.4 * U; x.strokeStyle = '#c9971f'; x.setLineDash([1.2 * U, 1.2 * U]); x.beginPath(); x.arc(X(0), Z(0), 6.4 * U, 0, TAU); x.stroke();
+    x.strokeStyle = '#1a1c20'; x.lineDashOffset = 1.2 * U; x.beginPath(); x.arc(X(0), Z(0), 6.4 * U, 0, TAU); x.stroke(); x.setLineDash([]);
+    x.lineWidth = 0.1 * U; x.strokeStyle = 'rgba(224,170,40,.85)';
+    [-1.3, 1.3].forEach(z => { x.beginPath(); x.moveTo(X(4.5), Z(z)); x.lineTo(X(13.5), Z(z)); x.stroke(); });
+    x.beginPath(); x.moveTo(X(4.2), Z(-2.2)); x.lineTo(X(4.2), Z(2.2)); x.stroke();
+    x.globalCompositeOperation = 'destination-in';
+    const mg = x.createRadialGradient(N / 2, N / 2, N * 0.22, N / 2, N / 2, N / 2); mg.addColorStop(0, 'rgba(0,0,0,1)'); mg.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = mg; x.fillRect(0, 0, N, N);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+  })();
+  const yard = new Mesh(new THREE.PlaneGeometry(YC.S, YC.S).rotateX(-PI / 2), new THREE.MeshStandardMaterial({ map: YT, transparent: true, opacity: 0, roughness: .85, metalness: .05, envMapIntensity: .2, depthWrite: false }));
+  yard.position.set(YC.x, -2.76, 0); yard.renderOrder = -50; yard.visible = false; scene.add(yard);
+  const pool = new Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-PI / 2), new THREE.MeshBasicMaterial({ map: glowTex, color: 0xd9791a, transparent: true, opacity: 0, blending: ADD, depthWrite: false }));
+  pool.scale.set(26, 1, 11); pool.position.set(4.2, -2.74, 0); pool.renderOrder = -45; pool.visible = false; scene.add(pool);
+  const sunDir = new Vector3(0.55, 0.12, -0.83).normalize();     // cùng hướng với mặt trời trên bầu trời
+  const sunL = new THREE.DirectionalLight(0xe0903a, 0); sunL.position.copy(sunDir).multiplyScalar(60).add(new Vector3(3.6, 0, 0)); sunL.target.position.set(3.6, 0, 0); scene.add(sunL, sunL.target);
+
+  const bgGroup = new Group(); bgGroup.position.set(3.6, -2.75, 0); bgGroup.visible = false; scene.add(bgGroup);
+  const cv2 = (w, h, fn) => { const c = document.createElement('canvas'); c.width = w; c.height = h; fn(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; };
+  const stripeT = cv2(16, 256, (x, w, h) => { for (let i = 0; i < 8; i++) { x.fillStyle = i % 2 ? '#e9e6df' : '#c43a2a'; x.fillRect(0, i * 32, w, 32); } });
+  const winT = cv2(256, 64, (x, w, h) => { x.fillStyle = '#2b303b'; x.fillRect(0, 0, w, h); for (let r = 0; r < 3; r++) for (let k = 0; k < 20; k++) { x.fillStyle = rng() < .62 ? '#f0b050' : '#171a21'; x.fillRect(6 + k * 12.3, 8 + r * 18, 7, 10); } });
+  winT.repeat.set(3, 1);
+  const bgMat = std({ color: 0x2f3745, roughness: .85, metalness: .25, envMapIntensity: .15, side: THREE.DoubleSide });
+  const bgMat2 = std({ color: 0x424c5e, roughness: .8, metalness: .3, envMapIntensity: .15 });
+  const stackMat = std({ map: stripeT, roughness: .7, metalness: .2, envMapIntensity: .15 });
+  const hallMat = std({ map: winT, emissiveMap: winT, emissive: 0xffffff, emissiveIntensity: .85, roughness: .9, metalness: .1, envMapIntensity: .1 });
+  const redMat = new THREE.MeshBasicMaterial({ color: 0xa8321f }), lampMat = new THREE.MeshBasicMaterial({ color: 0xffc060 });
+  const bgBlink = [];
+  const ringPlace = (n, r0, r1, fn) => { for (let i = 0; i < n; i++) { const a = (i + rng() * 0.8) / n * TAU, r = r0 + (r1 - r0) * rng(); fn(Math.cos(a) * r, Math.sin(a) * r, a); } };
+  const steam = (x, y, z, sz, op) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x8a8782, transparent: true, opacity: op, depthWrite: false })); sp.scale.set(sz, sz * 0.8, 1); sp.position.set(x, y, z); bgGroup.add(sp); };
+  ringPlace(6, 62, 110, (x, z) => {                              // tháp giải nhiệt
+    const R = 4.8 + rng() * 2.6, H = 18 + rng() * 10, pts = [];
+    for (let i = 0; i <= 14; i++) { const t = i / 14, k = t < .4 ? (.4 - t) / .4 : (t - .4) / .6; pts.push(new THREE.Vector2(R * (.66 + .34 * k * k), H * t)); }
+    const t = new Mesh(new THREE.LatheGeometry(pts, 28), bgMat); t.position.set(x, 0, z); bgGroup.add(t);
+    steam(x, H + R * 1.3, z, R * 5, .22); steam(x + R * .6, H + R * 2.6, z, R * 6.5, .13);
+  });
+  ringPlace(6, 60, 115, (x, z) => {                              // ống khói sọc đỏ-trắng giống ống khói nhà máy, có đèn báo
+    const H = 34 + rng() * 14, c = new Mesh(new THREE.CylinderGeometry(.8, 1.3, H, 14), stackMat); c.position.set(x, H / 2, z); bgGroup.add(c);
+    const l = new Mesh(new THREE.SphereGeometry(.55, 8, 6), redMat); l.position.set(x, H + .6, z); bgGroup.add(l); bgBlink.push(l);
+    steam(x, H + 4, z, 12, .16);
+  });
+  ringPlace(10, 55, 105, (x, z, a) => {                          // nhà xưởng dài sáng đèn
+    const w = 22 + rng() * 14, h = 7 + rng() * 4, hall = new Mesh(new THREE.BoxGeometry(w, h, 9), hallMat); hall.position.set(x, h / 2, z); hall.rotation.y = -a + PI / 2; bgGroup.add(hall);
+  });
+  ringPlace(12, 50, 100, (x, z) => {                             // bồn chứa
+    const r = 3 + rng() * 1.6, h = 5 + rng() * 3, g = new Group(); g.position.set(x, 0, z);
+    const b = new Mesh(new THREE.CylinderGeometry(r, r, h, 20), bgMat2); b.position.y = h / 2; g.add(b);
+    const d = new Mesh(new THREE.SphereGeometry(r, 16, 8, 0, TAU, 0, PI / 2), bgMat2); d.position.y = h; g.add(d); bgGroup.add(g);
+  });
+  ringPlace(5, 50, 90, (x, z, a) => {                            // giàn ống dẫn
+    const g = new Group(); g.position.set(x, 0, z); g.rotation.y = -a + PI / 2;
+    const pipe = new Mesh(new THREE.BoxGeometry(22, .8, 1.2), bgMat); pipe.position.y = 4.4; g.add(pipe);
+    [-10, 0, 10].forEach(px => { const post = new Mesh(new THREE.BoxGeometry(.5, 4.4, .5), bgMat2); post.position.set(px, 2.2, 0); g.add(post); }); bgGroup.add(g);
+  });
+  ringPlace(18, 24, 38, (x, z) => {                              // đèn đường natri quanh sân, tạo vệt sáng trên nền
+    if (Math.abs(z) < 4.5 && x + 3.6 > 2) return;
+    const g = new Group(); g.position.set(x, 0, z);
+    const pole = new Mesh(new THREE.CylinderGeometry(.07, .1, 6.2, 8), bgMat2); pole.position.y = 3.1; g.add(pole);
+    const head = new Mesh(new THREE.SphereGeometry(.26, 8, 6), lampMat); head.position.y = 6.3; g.add(head);
+    const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xe89a3a, transparent: true, opacity: .55, blending: ADD, depthWrite: false })); gl.scale.setScalar(4.5); gl.position.y = 6.3; g.add(gl);
+    const lp = new Mesh(new THREE.PlaneGeometry(9, 9).rotateX(-PI / 2), new THREE.MeshBasicMaterial({ map: glowTex, color: 0xd98a30, transparent: true, opacity: .3, blending: ADD, depthWrite: false })); lp.position.y = .05; g.add(lp);
+    bgGroup.add(g);
+  });
+  const bgFrame = (mm, t) => {
+    const g = smooth(0.5, 0.95, mm); bgGroup.visible = g > 0.01; bgGroup.scale.y = Math.max(0.001, g);
+    ground.visible = yard.visible = pool.visible = mm > 0.01;
+    ground.material.opacity = smooth(0, 0.6, mm); yard.material.opacity = smooth(0.15, 0.8, mm); pool.material.opacity = 0.3 * smooth(0.3, 1, mm);
+    sunL.intensity = 2.2 * mm; hemi.color.copy(hem0).lerp(hem1, mm); lMg.color.copy(mg0).lerp(mg1, mm);
+    bgBlink.forEach((l, i) => l.scale.setScalar(0.5 + 0.9 * (0.5 + 0.5 * Math.sin(t * 2.2 + i * 1.7))));
+  };
+
+  /* ---------- Chế độ tập trung: giữ màu bộ phận được chọn, làm tối phần còn lại ---------- */
+  const tagP = (p, ...a) => a.forEach(o => { if (o) o.userData.part = p; });
+  tagP('outer', outerMesh, pore1); tagP('inner', innerMesh, pore2, electrons.points, protons.points);
+  tagP('syn', synBase, synStalk, synHead, synRotor); tagP('matrix', fillMesh); tagP('dna', dna1, dna2); tagP('ribo', ribLarge, ribSmall);
+  coins.forEach(c => tagP('atp', c.g)); tagP('wall', ...ribs, cradle, gate); tagP('belt', beltGroup, beltLegs, recv);
+  gearSets.forEach(({ gs }) => gs.forEach(g => tagP('gear', g)));
+  const KEEP = { outer: ['outer', 'wall'], inner: ['inner', 'gear', 'syn'], matrix: ['matrix'], atp: ['atp', 'syn', 'belt'], dna: ['dna'], ribo: ['ribo'], exhaust: ['exhaust'] };
+  const ZOOM = { outer: 9, inner: 7, matrix: 7.5, atp: 5.5, dna: 4.5, ribo: 4, exhaust: 8 };
+  const partOf = o => { for (let p = o; p; p = p.parent) { if (p.userData && p.userData.part) return p.userData.part; if (p === root) break; } return o.isPoints && o.parent === mito ? 'matrix' : 'x'; };
+  let dims = null, fAmt = 0, fTarget = 0, fKeep = null, fDirty = false;
+  const grayC = new Color();
+  function buildDims() {
+    const map = new Map();
+    root.traverse(o => {
+      const part = partOf(o);
+      [].concat(o.material || []).forEach(mt => {
+        let r = map.get(mt);
+        if (!r) {
+          const u = mt.uniforms; r = { mt, parts: new Set() };
+          if (u && u.uGain) { r.kind = 'gain'; r.base = u.uGain.value; }
+          else if (u && u.uOpacity) { r.kind = 'op'; r.base = u.uOpacity.value; }
+          else if (!u && mt.color) { r.kind = mt === signMat ? 'alpha' : 'col'; r.c = mt.color.clone(); r.e = mt.emissive ? mt.emissive.clone() : null; r.base = mt.opacity; }
+          else return;
+          map.set(mt, r);
+        }
+        r.parts.add(part);
+      });
+    });
+    return [...map.values()];
+  }
+  function applyFocus() {
+    if (!dims) dims = buildDims();
+    for (const r of dims) {
+      const f = fKeep && [...r.parts].some(p => fKeep.includes(p)) ? 0 : fAmt, mt = r.mt;
+      if (r.kind === 'gain') mt.uniforms.uGain.value = r.base * (1 - 0.8 * f);
+      else if (r.kind === 'op') mt.uniforms.uOpacity.value = r.base * (1 - 0.85 * f);
+      else if (r.kind === 'alpha') mt.opacity = r.base * (1 - 0.8 * f);
+      else {
+        const l = (r.c.r * 0.3 + r.c.g * 0.59 + r.c.b * 0.11) * 0.35;
+        mt.color.copy(r.c).lerp(grayC.setRGB(l, l, l), f);
+        if (r.e) mt.emissive.copy(r.e).multiplyScalar(1 - f);
+      }
+    }
+  }
+
+  const state = { auto: true, labels: true, fx: true, cut: true };
+  let cutAmt = 0;
+  let mLin = 0, mTarget = 0, m = 0, quizOpen = false, selected = null, tween = null;
+  const TRANS = 2.8;
+
+  function preset(mode) {
+    const asp = innerWidth / innerHeight, f = clamp(1.35 / asp, 1, 2.3);
+    if (mode === 1) {
+      const t = new Vector3(0.3, 0, 0);
+      return { target: t, pos: t.clone().add(new Vector3(0.52, 0.26, 0.81).normalize().multiplyScalar(13.5 * f)) };
+    }
+    const t = new Vector3(3.8, 0.2, 0);
+    return { target: t, pos: t.clone().add(new Vector3(0.34, 0.2, 0.92).normalize().multiplyScalar(19.5 * f)) };
+  }
+  function startTween(p1, t1, dur) {
+    tween = { t: 0, dur, p0: camera.position.clone(), t0: controls.target.clone(), p1, t1 };
+    controls.enabled = false;
+  }
+  function stepTween(dt) {
+    if (!tween) return;
+    tween.t += dt;
+    const k = easeInOut(clamp(tween.t / tween.dur));
+    camera.position.lerpVectors(tween.p0, tween.p1, k);
+    controls.target.lerpVectors(tween.t0, tween.t1, k);
+    if (tween.t >= tween.dur) { tween = null; controls.enabled = true; }
+  }
+  {
+    const p = preset(1);
+    camera.position.copy(p.target).addScaledVector(p.pos.clone().sub(p.target), 1.9);
+    controls.target.copy(p.target);
+    startTween(p.pos, p.target, 3.2);
+  }
+
+  const toastEl = $('#toast'); let toastTimer = 0;
+  function toast(msg) { toastEl.textContent = msg; toastEl.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2600); }
+
+  const modesEl = $('#modes');
+  $$('button', modesEl).forEach(b => b.addEventListener('click', () => setMode(+b.dataset.mode)));
+  function setMode(n) {
+    const tgt = n === 2 ? 1 : 0;
+    if (tgt === mTarget) return;
+    mTarget = tgt;
+    $$('button', modesEl).forEach(b => b.classList.toggle('active', +b.dataset.mode === n));
+    closeInfo(true);
+    const p = preset(n); startTween(p.pos, p.target, 2.6);
+    toast(n === 2 ? '⚡ Đang biến hình: Ti thể → Nhà máy năng lượng…' : '🧬 Đang chuyển về cấu trúc sinh học…');
+  }
+
+  const infoEl = $('#info'), infoBody = $('#infoBody');
+  function openInfo(h) {
+    const d = INFO[h.info], fac = mTarget === 1;
+    infoEl.style.setProperty('--c', h.color);
+    infoBody.innerHTML = `
+      <div class="i-head" style="--c:${h.color}">
+        <div class="i-ico">${d.icon}</div>
+        <div><div class="i-tag">${fac ? '🏭 ' + h.label : d.tag}</div><h2>${d.name}</h2></div>
+      </div>
+      <p class="i-sum">${d.summary}</p>
+      <h3>Chức năng chính</h3>
+      <ul>${d.points.map(p => `<li>${p}</li>`).join('')}</ul>
+      <div class="analog ${fac ? 'hot' : ''}"><span>🏭 Ví như nhà máy</span>${d.factory}</div>
+      <div class="fact"><span>💡 Bạn có biết?</span>${d.fact}</div>`;
+    infoEl.scrollTop = 0; infoEl.classList.add('open');
+    selected = h;
+  }
+  function closeInfo(silent) {
+    if (!selected && !infoEl.classList.contains('open')) return;
+    infoEl.classList.remove('open'); selected = null;
+    fTarget = 0; fKeep = null; fDirty = true; document.body.classList.remove('focus');
+    if (!silent) { const q = preset(mTarget === 1 ? 2 : 1); startTween(q.pos, q.target, 1.3); }
+  }
+  function selectHS(h) {
+    openInfo(h);
+    fKeep = KEEP[h.info] || null; fTarget = 1; fDirty = true; document.body.classList.add('focus');
+    const w = h.anchor.clone(); root.localToWorld(w);
+    const asp = clamp(1.35 / camera.aspect, 1, 2.3), big = ['outer', 'inner', 'matrix', 'exhaust'].includes(h.info);
+    const dist = (ZOOM[h.info] || 6) * (mTarget === 1 ? 1.5 : 1) * (big ? asp : Math.sqrt(asp));
+    const dir = camera.position.clone().sub(controls.target).normalize();
+    camera.updateMatrixWorld();
+    const up = new Vector3().setFromMatrixColumn(camera.matrixWorld, 1), rt = new Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+    const half = dist * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2), tgt = w.clone();
+    if (innerWidth <= 760) tgt.addScaledVector(up, -half * 0.4); else tgt.addScaledVector(rt, half * camera.aspect * 0.32);
+    startTween(tgt.clone().addScaledVector(dir, dist), tgt, 1.3);
+  }
+  $('#infoClose').addEventListener('click', () => closeInfo(false));
+  { let d0 = null; const cv = $('#scene');
+    cv.addEventListener('pointerdown', e => { d0 = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+    cv.addEventListener('pointerup', e => { if (d0 && selected && Math.hypot(e.clientX - d0.x, e.clientY - d0.y) < 6 && performance.now() - d0.t < 500) closeInfo(false); d0 = null; }); }
+
+  function bindToggle(id, key) {
+    const b = $(id);
+    b.addEventListener('click', () => { state[key] = !state[key]; b.setAttribute('aria-pressed', String(state[key])); });
+  }
+  bindToggle('#tgSpin', 'auto'); bindToggle('#tgLabels', 'labels'); bindToggle('#tgCut', 'cut'); bindToggle('#tgFx', 'fx');
+
+  /* ---------- Đố vui ---------- */
+  const quizEl = $('#quiz'), quizBody = $('#quizBody');
+  let qz = null;
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  function bestScore(set) {
+    try { if (set !== undefined) { const b = +(localStorage.getItem('mito-best') || 0); if (set > b) localStorage.setItem('mito-best', String(set)); } return +(localStorage.getItem('mito-best') || 0); } catch (e) { return set || 0; }
+  }
+  function startQuiz() {
+    qz = { i: 0, score: 0, locked: false, items: QUIZ.map(q => ({ q: q.q, topic: q.topic, exp: q.exp, opts: shuffle(q.opts.map((t, idx) => ({ t, ok: idx === q.a }))) })) };
+    renderQuiz();
+  }
+  function dotsHTML() { return `<div class="q-dots">${qz.items.map((_, i) => `<i class="${i < qz.i ? 'done' : i === qz.i ? 'cur' : ''}"></i>`).join('')}</div>`; }
+  function renderQuiz() {
+    if (qz.i >= qz.items.length) {
+      const s = qz.score, n = qz.items.length, best = bestScore(s);
+      const msg = s === n ? 'Xuất sắc! Bạn xứng đáng là kỹ sư trưởng của nhà máy năng lượng tế bào 🏆'
+        : s >= 4 ? 'Rất tốt! Bạn nắm vững hầu hết kiến thức về ti thể 👏'
+        : s >= 3 ? 'Khá ổn! Hãy bấm lại các điểm chú thích để củng cố thêm nhé 🔧'
+        : 'Đừng nản! Hãy khám phá mô hình 3D và các điểm chú thích rồi thử lại 💪';
+      quizBody.innerHTML = `<div class="res"><div class="q-topic">Kết quả</div><div class="big">${s}/${n}</div><p>${msg}</p><div class="best">Điểm cao nhất của bạn: ${best}/${n}</div></div>
+        <div class="q-actions"><button class="btn ghost" id="qClose">Đóng</button><button class="btn" id="qAgain">Làm lại</button></div>`;
+      $('#qAgain').addEventListener('click', startQuiz); $('#qClose').addEventListener('click', closeQuiz);
+      return;
+    }
+    const it = qz.items[qz.i];
+    quizBody.innerHTML = `
+      <div class="q-top">${dotsHTML()}<div class="q-score">Điểm: ${qz.score}/${qz.items.length}</div></div>
+      <div class="q-topic">Câu ${qz.i + 1}/${qz.items.length} · ${it.topic}</div>
+      <div class="q-text">${it.q}</div>
+      <div class="opts">${it.opts.map((o, j) => `<button class="opt"><b>${'ABCD'[j]}</b><span>${o.t}</span></button>`).join('')}</div>
+      <div id="qfb"></div><div class="q-actions" id="qact"></div>`;
+    $$('.opt', quizBody).forEach((b, idx) => b.addEventListener('click', () => answer(idx)));
+  }
+  function answer(idx) {
+    if (qz.locked) return; qz.locked = true;
+    const it = qz.items[qz.i], ok = it.opts[idx].ok;
+    if (ok) qz.score++;
+    $$('.opt', quizBody).forEach((b, j) => { b.disabled = true; if (it.opts[j].ok) b.classList.add('right'); else if (j === idx) b.classList.add('wrong'); });
+    $('#qfb').innerHTML = `<div class="fb ${ok ? 'ok' : 'no'}"><strong>${ok ? '✅ Chính xác!' : '❌ Chưa đúng rồi.'}</strong>${it.exp}</div>`;
+    const last = qz.i === qz.items.length - 1;
+    $('#qact').innerHTML = `<button class="btn" id="qNext">${last ? 'Xem kết quả' : 'Câu tiếp theo →'}</button>`;
+    $('#qNext').addEventListener('click', () => { qz.i++; qz.locked = false; renderQuiz(); });
+    $('.q-score', quizBody).textContent = `Điểm: ${qz.score}/${qz.items.length}`;
+  }
+  function openQuiz() { quizOpen = true; closeInfo(true); startQuiz(); quizEl.classList.add('open'); quizEl.setAttribute('aria-hidden', 'false'); }
+  function closeQuiz() { quizOpen = false; quizEl.classList.remove('open'); quizEl.setAttribute('aria-hidden', 'true'); }
+  $('#btnQuiz').addEventListener('click', openQuiz);
+  $('#quizClose').addEventListener('click', closeQuiz);
+  quizEl.addEventListener('click', e => { if (e.target === quizEl) closeQuiz(); });
+  addEventListener('keydown', e => { if (e.key === 'Escape') { if (quizOpen) closeQuiz(); else closeInfo(false); } });
+
+  addEventListener('resize', () => {
+    renderer.setSize(innerWidth, innerHeight, false);
+    composer.setSize(innerWidth, innerHeight);
+    camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); updScale();
+  });
+
+  /* =================================================================
+     VÒNG LẶP HOẠT ẢNH
+     ================================================================= */
+  const clock = new THREE.Clock();
+  const tmp = new Vector3(), tmp2 = new Vector3(), _s = new Vector3();
+  const cA0 = new Color(0x2a2a8a), cA1 = new Color(0x234a80), cB0 = new Color(0xa8328a), cB1 = new Color(0xc9701a);
+  const fill0 = new Color(0x4a6fb8), fill1 = new Color(0xc9801f);
+  const key0 = new Color(0xcfe8ff), key1 = new Color(0xffe0b0);
+  const lCy0 = new Color(0x4aa3d8), lCy1 = new Color(0xd98a3a);
+  let frames = 0;
+
+  function frame() {
+    requestAnimationFrame(frame);
+    const dt = Math.min(clock.getDelta(), 0.05);
+    const time = (uTime.value += dt);
+
+    // --- biến hình ---
+    if (mLin !== mTarget) {
+      mLin += Math.sign(mTarget - mLin) * dt / TRANS;
+      mLin = clamp(mLin, 0, 1);
+      if (Math.abs(mTarget - mLin) < 1e-3) mLin = mTarget;
+    }
+    m = easeInOut(mLin);
+    { const ct = state.cut ? 1 : 0; cutAmt += (ct - cutAmt) * Math.min(1, dt * 2.5); if (Math.abs(ct - cutAmt) < 0.002) cutAmt = ct; uCutAng.value = easeInOut(cutAmt) * 1.15; }
+    const edge = smooth(0, 0.04, mLin) * (1 - smooth(0.96, 1, mLin));
+
+    stepTween(dt);
+    controls.autoRotate = state.auto && !tween && !quizOpen && !selected;
+    controls.update();
+
+    root.position.y = Math.sin(time * 0.8) * 0.06 * (1 - m);
+
+    // --- shader & màu ---
+    const wipe = lerp(-4.9, 4.9, m);
+    outerU.uWipe.value = wipe; outerU.uEdge.value = edge;
+    innerU.cA.value.copy(cA0).lerp(cA1, m); innerU.cB.value.copy(cB0).lerp(cB1, m);
+    fillU.uColor.value.copy(fill0).lerp(fill1, m);
+    key.color.copy(key0).lerp(key1, m * 0.6);
+    lCy.color.copy(lCy0).lerp(lCy1, m * 0.7);
+    skyU.uM.value = m; skyU.uT.value = time; bgFrame(m, time); sky.position.copy(camera.position); scene.fog.color.copy(fog0).lerp(fog1, m);
+    bloom.strength = 0.08 + 0.12 * edge;
+    pore1.visible = pore2.visible = m < 0.85;
+    poreMat1.opacity = poreMat2.opacity = 1 - smooth(0.2, 0.7, m);
+
+    scanRing.position.x = wipe;
+    const sr = R_OUT * profile(clamp(wipe / L_OUT, -1, 1)) + 0.14;
+    scanRing.scale.setScalar(Math.max(0.02, sr));
+    scanRing.visible = edge > 0.01 && Math.abs(wipe) < L_OUT + 0.3;
+    scanMat.opacity = edge;
+
+    // --- yếu tố nhà máy ---
+    updateAppear(m);
+    floor.visible = false;
+    smoke.visible = m > 0.6; smokeU.uAmount.value = smooth(0.62, 0.95, m);
+    const flick = 0.92 + 0.08 * Math.sin(time * 9) * Math.sin(time * 3.1);
+    signMat.color.setScalar(flick);
+    lamps.forEach((l, i) => l.scale.setScalar(0.8 + 0.4 * Math.max(0, Math.sin(time * 5 + i * PI))));
+    recvRing.scale.setScalar(1 + 0.04 * Math.sin(time * 3)); recvRing2.rotation.x = time * 1.6;
+    beltTex.offset.x = -time * 1.4;
+    gearSets.forEach(({ gs, rot0 }) => {
+      const base = time * 0.45;
+      gs[0].rotation.z = rot0[0] + base;
+      gs[1].rotation.z = rot0[1] - base * GN[0] / GN[1];
+      gs[2].rotation.z = rot0[2] + base * GN[0] / GN[2];
+    });
+
+    // --- ribosome ---
+    for (let i = 0; i < RIB_N; i++) {
+      const b = ribBase[i], ph = ribPh[i], s = ribS[i];
+      tmp.set(b.x + 0.04 * Math.sin(time * 0.6 + ph), b.y + 0.04 * Math.cos(time * 0.5 + ph * 1.3), b.z + 0.04 * Math.sin(time * 0.7 + ph * 0.7));
+      dummy.position.copy(tmp); dummy.quaternion.identity(); dummy.scale.setScalar(s); dummy.updateMatrix(); ribLarge.setMatrixAt(i, dummy.matrix);
+      dummy.position.copy(tmp).addScaledVector(ribDir[i], 0.055 * s); dummy.updateMatrix(); ribSmall.setMatrixAt(i, dummy.matrix);
+    }
+    ribLarge.instanceMatrix.needsUpdate = true; ribSmall.instanceMatrix.needsUpdate = true;
+
+    // --- ATP synthase ---
+    for (let i = 0; i < SN; i++) {
+      const s = syn[i]; s.flash = Math.max(0, s.flash - dt * 1.6);
+      dummy.quaternion.copy(s.q);
+      dummy.position.copy(s.P).addScaledVector(s.Nin, 0.165); dummy.scale.setScalar(1 + 0.45 * s.flash); dummy.updateMatrix(); synHead.setMatrixAt(i, dummy.matrix);
+      tmpQ.setFromAxisAngle(Y, time * 5 + s.ph); dummy.quaternion.copy(s.q).multiply(tmpQ);
+      dummy.position.copy(s.P).addScaledVector(s.Nin, 0.228); dummy.scale.setScalar(1 + 0.3 * s.flash); dummy.updateMatrix(); synRotor.setMatrixAt(i, dummy.matrix);
+    }
+    synHead.instanceMatrix.needsUpdate = true; synRotor.instanceMatrix.needsUpdate = true;
+
+    // --- electron & proton ---
+    electrons.points.visible = protons.points.visible = state.fx;
+    if (state.fx) {
+      for (let i = 0; i < EL_N; i++) {
+        const e = elData[i], w = pm(e.ph + time * e.sp * e.dir, 1);
+        innerP(e.t, lerp(e.th0, e.th1, w), tmp);
+        electrons.pos[i * 3] = tmp.x; electrons.pos[i * 3 + 1] = tmp.y; electrons.pos[i * 3 + 2] = tmp.z;
+        electrons.a[i] = Math.pow(Math.sin(PI * w), 0.6) * (0.75 + 0.25 * Math.sin(time * 8 + i));
+      }
+      electrons.g.attributes.position.needsUpdate = true; electrons.g.attributes.aA.needsUpdate = true;
+      for (let i = 0; i < PR_N; i++) {
+        const p = prData[i], w = pm(p.ph + time * p.sp, 1); let a = 1;
+        if (w < 0.22) { const u = w / 0.22; tmp.lerpVectors(p.A, p.B, smooth(0, 1, u)); a = smooth(0, 0.2, u); }
+        else if (w < 0.62) {
+          const u = (w - 0.22) / 0.4; tmp.lerpVectors(p.B, p.C, easeInOut(u));
+          tmp.x += 0.025 * Math.sin(u * 9 + p.ph * 20); tmp.y += 0.025 * Math.cos(u * 8 + p.ph * 13); tmp.z += 0.025 * Math.sin(u * 7 + p.ph * 31);
+        } else { const u = (w - 0.62) / 0.38; tmp.lerpVectors(p.C, p.D, easeInOut(u)); a = 1 - smooth(0.8, 1, u); }
+        protons.pos[i * 3] = tmp.x; protons.pos[i * 3 + 1] = tmp.y; protons.pos[i * 3 + 2] = tmp.z; protons.a[i] = a;
+      }
+      protons.g.attributes.position.needsUpdate = true; protons.g.attributes.aA.needsUpdate = true;
+    }
+
+    // --- đồng xu ATP ---
+    updatePath(m);
+    const speed = lerp(1.1, 1.4, m);
+    for (const c of coins) {
+      PP[0].copy(c.start);
+      let tot = 0; for (let i = 0; i < 4; i++) { seg[i] = PP[i].distanceTo(PP[i + 1]); tot += seg[i]; }
+      c.u += speed * dt / Math.max(tot, 0.001);
+      if (c.u >= 1) { c.u = 0; pickStart(c, true); PP[0].copy(c.start); }
+      let d = c.u * tot, i = 0;
+      while (i < 3 && d > seg[i]) { d -= seg[i]; i++; }
+      c.g.position.lerpVectors(PP[i], PP[i + 1], seg[i] > 0 ? clamp(d / seg[i]) : 0);
+      c.g.position.y += 0.03 * Math.sin(time * 3 + c.ph) * (1 - m);
+      c.g.rotation.y = time * 1.3 + c.ph;
+      const sc = smooth(0, 0.06, c.u) * (1 - smooth(0.92, 1, c.u));
+      c.g.visible = sc > 0.01; c.g.scale.setScalar(Math.max(0.0001, sc));
+    }
+
+    // --- nền ---
+    dust.rotation.y += dt * 0.01;
+
+    // --- nhãn 3D ---
+    const w = innerWidth, h = innerHeight, act = [];
+    for (const d of HS) {
+      const vis = d.mode === 1 ? 1 - m : m;
+      const show = state.labels && vis > 0.92 && !quizOpen && (!selected || selected === d);
+      d.el.classList.toggle('on', show);
+      d.el.classList.toggle('active', selected === d);
+      if (vis < 0.02) continue;
+      d.world.copy(d.anchor); root.localToWorld(d.world);
+      _s.copy(d.world).project(camera);
+      if (_s.z > 1 || _s.z < -1) { d.el.style.visibility = 'hidden'; continue; }
+      d.el.style.visibility = 'visible'; d.el.classList.toggle('flip', _s.x > 0.1);
+      d.sx = (_s.x * .5 + .5) * w; d.sy = (-_s.y * .5 + .5) * h; if (show) act.push(d); else d.el.style.transform = `translate3d(${d.sx.toFixed(1)}px,${d.sy.toFixed(1)}px,0)`;
+    }
+
+    for (let it = 0; it < 4; it++) for (let i = 0; i < act.length; i++) for (let j = i + 1; j < act.length; j++) {
+      const a = act[i], b = act[j]; let dx = b.sx - a.sx, dy = b.sy - a.sy, dd = Math.hypot(dx, dy);
+      if (dd < 46) { if (dd < 0.01) { dx = 1; dy = 0; dd = 1; } const k = (46 - dd) / 2 / dd; a.sx -= dx * k; a.sy -= dy * k; b.sx += dx * k; b.sy += dy * k; }
+    }
+    act.forEach(d => { d.el.style.transform = `translate3d(${d.sx.toFixed(1)}px,${d.sy.toFixed(1)}px,0)`; });
+    fAmt += (fTarget - fAmt) * Math.min(1, dt * 4); if (Math.abs(fTarget - fAmt) < 0.003) fAmt = fTarget;
+    if (fDirty || fAmt !== fTarget) { try { applyFocus(); } catch (e) { console.error(e); } if (fAmt === fTarget) fDirty = false; }
+    composer.render();
+    if (++frames === 8) setTimeout(() => { loader.classList.add('hide'); toast('👆 Chạm vào các biểu tượng để xem chi tiết'); }, 350);
+  }
+  frame();
+}
+
+/* =====================================================================
+   NẠP THƯ VIỆN & CHẠY
+   ===================================================================== */
+try {
+  const [THREE, oc, ec, rp, ub, op, re] = await Promise.all([
+    import('three'),
+    import('three/addons/controls/OrbitControls.js'),
+    import('three/addons/postprocessing/EffectComposer.js'),
+    import('three/addons/postprocessing/RenderPass.js'),
+    import('three/addons/postprocessing/UnrealBloomPass.js'),
+    import('three/addons/postprocessing/OutputPass.js'),
+    import('three/addons/environments/RoomEnvironment.js')
+  ]);
+  try {
+    boot({ THREE, OrbitControls: oc.OrbitControls, EffectComposer: ec.EffectComposer, RenderPass: rp.RenderPass,
+           UnrealBloomPass: ub.UnrealBloomPass, OutputPass: op.OutputPass, RoomEnvironment: re.RoomEnvironment });
+  } catch (err) {
+    console.error(err);
+    showError('<b>Có lỗi khi dựng mô hình</b>' + String(err && err.message || err) + '<br>Hãy thử tải lại trang hoặc dùng trình duyệt mới hơn.');
+  }
+} catch (err) {
+  console.error(err);
+  showError('<b>Không tải được thư viện Three.js</b>Tệp này cần kết nối Internet để tải Three.js từ CDN (jsdelivr). Hãy kiểm tra mạng rồi mở lại tệp bằng Chrome, Edge, Firefox hoặc Safari.');
+}
+</script>
+</body>
+</html>
